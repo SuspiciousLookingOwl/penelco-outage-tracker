@@ -93,15 +93,19 @@ function InterruptionRecord({ record, onPreview }: InterruptionRecordProps) {
 				/>
 			)}
 			<div className="grow space-y-1.5">
-				<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
-					<span className={`rounded px-1.5 py-0.5 text-xs font-medium ${typeStyles[record.type]}`}>
-						{record.type}
-					</span>
-					<span className="tabular-nums text-slate-300">{formatDate(record.date)}</span>
-					{range && <span className="tabular-nums text-slate-400">{range}</span>}
-					<span className="ml-auto text-xs text-slate-500">
-						{formatDateTime(record.recognition.post.timestamp)}
-					</span>
+				<div className="flex flex-col flex-wrap items-baseline space-x-2 space-y-1 text-sm">
+					<div className="flex flex-row items-center space-x-2">
+						<span className={`rounded px-1.5 py-0.5 text-xs font-medium ${typeStyles[record.type]}`}>
+							{record.type}
+						</span>
+						<span className="text-xs text-slate-500">
+							{formatDateTime(record.recognition.post.timestamp)}
+						</span>
+					</div>
+					<div className="flex flex-row items-center space-x-2">
+						<span className="tabular-nums text-slate-300">{formatDate(record.date)}</span>
+						{range && <span className="tabular-nums text-slate-400 text-xs">{range}</span>}
+					</div>
 				</div>
 				{recognizedReason && <p className="text-xs text-slate-400">{recognizedReason}</p>}
 			</div>
