@@ -39,13 +39,13 @@ export function InterruptionCard({ interruption, type, term = "", onPreview }: I
 
 	return (
 		<Card className="space-y-3 p-4">
-			<div className="space-y-2">
+			<div className="space-y-2.5">
 				<div className="flex items-center space-x-1.5">
-					<h2 className="font-medium">{highlight(interruption.area, term)}</h2>
+					<h2 className="font-medium text-lg">{highlight(interruption.area, term)}</h2>
 					<InterruptionStatus type={type} className="text-xs" />
 				</div>
 				{interruption.subareas && (
-					<p className="text-sm text-slate-400">{highlight(interruption.subareas, term)}</p>
+					<p className="text-sm text-slate-300">{highlight(interruption.subareas, term)}</p>
 				)}
 			</div>
 
