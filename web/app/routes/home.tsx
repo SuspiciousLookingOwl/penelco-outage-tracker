@@ -20,7 +20,11 @@ type GroupedItem = { item: Interruption; start: Dayjs; end: Dayjs };
 export default function Home() {
 	const [search, setSearch] = useState("");
 	const [preview, setPreview] = useState<string | null>(null);
-	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ past: true });
+	const [collapsed, setCollapsed] = useState<Record<InterruptionStatusType, boolean>>({
+		[InterruptionStatusType.Past]: true,
+		[InterruptionStatusType.Ongoing]: false,
+		[InterruptionStatusType.Upcoming]: false,
+	});
 
 	useEffect(() => {
 		if (!preview) return;
