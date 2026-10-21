@@ -1,0 +1,42 @@
+services:
+  penelco-api:
+    container_name: penelco-api
+    build: ./backend
+    ports:
+      - "3010:3000"
+    volumes:
+      - ./images:/usr/src/app/images
+    env_file:
+      - .env
+  penelco-postgres:
+    container_name: penelco-postgres
+    image: postgres:14-alpine
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+
+  penelco-web-builder:
+    container_name: penelco-web-builder
+    build: ./web
+    volumes:
+      - ./web_dist:/export
+    restart: "no"
+
+  penelco-nginx:
+    container_name: penelco-nginx
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web_dist:/usr/share/nginx/html:ro
+      - ./images:/usr/share/nginx/images:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      penelco-api:
+        condition: service_started
+      penelco-web-builder:
+        condition: service_completed_successfully
+    restart: unless-stopped

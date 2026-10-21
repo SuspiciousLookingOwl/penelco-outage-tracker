@@ -1,0 +1,12 @@
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "files.eol": "\n",
+  "typescript.tsdk": "node_modules\\typescript\\lib",
+  "testing.automaticallyOpenTestResults": "neverOpen",
+  "chat.tools.terminal.autoApprove": {
+    ".\\node_modules\\.bin\\tsc.cmd": true
+  }
+}
