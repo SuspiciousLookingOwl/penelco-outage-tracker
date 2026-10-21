@@ -53,7 +53,6 @@ export function InterruptionCard({ interruption, term = "", onPreview }: Interru
 							<span className="text-slate-500"> – </span>
 							{formatTime(slot.end) ?? "?"}
 						</span>
-						{slot.label && <span className="text-xs text-slate-500">{slot.label}</span>}
 					</Chip>
 				))}
 			</div>
