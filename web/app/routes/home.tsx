@@ -65,8 +65,8 @@ export default function Home() {
 
 		const newestFirst = (a: GroupedItem, b: GroupedItem) => b.start.diff(a.start);
 
-		upcoming.sort(newestFirst);
-		ongoing.sort(newestFirst);
+		upcoming.sort(newestFirst).reverse();
+		ongoing.sort(newestFirst).reverse();
 		past.sort(newestFirst);
 
 		return [
