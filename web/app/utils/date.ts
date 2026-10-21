@@ -10,7 +10,7 @@ export function formatDate(value: string) {
 }
 
 export function formatTime(value: string | null) {
-	return value ? dayjs(value).format("HH:mm") : null;
+	return value ? dayjs(value).format("hh:mm A") : null;
 }
 
 export function formatTimeRange(slots: RecordTimeSlot[]) {
