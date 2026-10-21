@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import dayjs, { type Dayjs } from "dayjs";
+import { type Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { MdChevronRight, MdExpandMore } from "react-icons/md";
 import { getInterruptions, type Interruption } from "~/api";
@@ -7,6 +7,7 @@ import { Card } from "~/components/card";
 import { Input } from "~/components/input";
 import { InterruptionCard } from "~/components/interruption-card";
 import { InterruptionStatus, InterruptionStatusType } from "~/components/interruption-status";
+import { getInterruptionBounds, nowPht } from "~/utils/date";
 import type { Route } from "./+types/home";
 import penelcoLogo from "./penelco.png";
 
@@ -39,7 +40,7 @@ export default function Home() {
 
 	const term = search.trim().toLowerCase();
 	const groups = useMemo(() => {
-		const now = dayjs();
+		const now = nowPht();
 		const upcoming: GroupedItem[] = [];
 		const ongoing: GroupedItem[] = [];
 		const past: GroupedItem[] = [];
@@ -52,8 +53,9 @@ export default function Home() {
 			const { start, end } = getInterruptionBounds(item);
 			const entry: GroupedItem = { item, start, end };
 
-			if (now.isBefore(start)) upcoming.push(entry);
-			else if (now.isAfter(end)) past.push(entry);
+			// 15 minute buffer for ongoing interruptions
+			if (now.isBefore(start.subtract(15, "minute"))) upcoming.push(entry);
+			else if (now.isAfter(end.add(15, "minute"))) past.push(entry);
 			else ongoing.push(entry);
 		}
 
@@ -116,7 +118,7 @@ export default function Home() {
 							<Card
 								onClick={() => setCollapsed((value) => ({ ...value, [group.key]: !value[group.key] }))}
 								expanded={open}
-								className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-700 hover:text-slate-100"
+								className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-slate-300 cursor-pointer hover:border-slate-700 hover:text-slate-100"
 							>
 								{open ? (
 									<MdExpandMore className="size-4 text-slate-500" />

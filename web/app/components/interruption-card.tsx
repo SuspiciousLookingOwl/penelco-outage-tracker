@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import { getImageUrl, RecordType, type Interruption, type InterruptionRecord as InterruptionRecordModel } from "~/api";
-import { formatDate, formatDateTime, formatTime, formatTimeRange } from "~/utils/date";
+import { formatDate, formatDateTime, formatTime, formatTimeRange, nowPht } from "~/utils/date";
 import { Card } from "./card";
 import { Chip } from "./chip";
 import { InterruptionStatus, InterruptionStatusType } from "./interruption-status";
@@ -41,7 +41,7 @@ export function InterruptionCard({ interruption, type, term = "", onPreview }: I
 		<Card className="space-y-3 p-4">
 			<div className="space-y-2">
 				<div className="flex items-center space-x-1.5">
-				<h2 className="font-medium">{highlight(interruption.area, term)}</h2>
+					<h2 className="font-medium">{highlight(interruption.area, term)}</h2>
 					<InterruptionStatus type={type} className="text-xs" />
 				</div>
 				{interruption.subareas && (
@@ -58,6 +58,7 @@ export function InterruptionCard({ interruption, type, term = "", onPreview }: I
 							<span className="text-slate-500"> – </span>
 							{formatTime(slot.end) ?? "?"}
 						</span>
+						<span className="text-xs text-slate-400">({dayjs(slot.start).from(nowPht())})</span>
 					</Chip>
 				))}
 			</div>

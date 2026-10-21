@@ -1,8 +1,18 @@
 import dayjs, { type Dayjs } from "dayjs";
 import minMax from "dayjs/plugin/minMax";
+import relativeTime from "dayjs/plugin/relativeTime";
+import utc from "dayjs/plugin/utc";
 import type { Interruption, RecordTimeSlot } from "~/api";
 
 dayjs.extend(minMax);
+dayjs.extend(utc);
+dayjs.extend(relativeTime);
+
+export const PHT_UTC_OFFSET_MINUTES = 8 * 60;
+
+export function nowPht(): Dayjs {
+	return dayjs().utcOffset(PHT_UTC_OFFSET_MINUTES);
+}
 
 export function formatDate(value: string) {
 	const date = dayjs(value);
