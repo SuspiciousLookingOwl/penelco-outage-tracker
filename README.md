@@ -1,6 +1,6 @@
 # PENELCO Outage Tracker
 
-Web app to track PENELCO outages. I developed this out of frustration from keeping track of outages because PENELCO only posts images for their outage announcements, and sometimes they post an image with a text list of areas and this makes it hard to track whether your location will be affecter or not
+Web app to track PENELCO outages. I developed this out of frustration from keeping track of outages because PENELCO only posts images for their outage announcements, and sometimes they post an image with a text list of areas, and this makes it hard to track whether your location will be affected or not
 
 ## How it works
 
