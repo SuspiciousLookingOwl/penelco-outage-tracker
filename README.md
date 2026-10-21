@@ -6,7 +6,15 @@ Web app to track PENELCO outages. I developed this out of frustration from keepi
 
 ### 1. Fetch outage posts from PENELCO
 
-I did this by reverse engineering their mobile app to find their API that returns posts (with content and images). The image also stored locally since PENELCO returns the image in the API as a base64 string instead of a URL (I don't know why they decided to do this, each API request is slow and 1MB+ in size because of it)
+I did this by reverse engineering their mobile app to find their API that returns posts (with content and images). The image also stored locally since PENELCO returns the image in the API as a base64 string instead of a URL (I don't know why they decided to do this, each API request is slow and 1MB+ in size because of it).
+
+This is done one a scheduled task (every 30 minutes) to keep it up to date.
+
+There are actually 3 ways (that I know of) to fetch the outage posts from PENELCO:
+
+1. [PENELCO's Facebook Page](https://www.facebook.com/penelco/); seems the most up-to-date, but requires Facebook scraping which is quite difficulty.
+2. [PENELCO's mobile app](https://play.google.com/store/apps/details?id=com.penelco.app) API; they recently published a mobile app and it has HTTP endpoints that return the outage posts. This seems up-to-date too (so far), so I ended up using this as my source
+3. [From PENELCO's website](https://www.penelco.com/outages); This was initially my primary choice because it was easy to access, but it doesn't seem to be as up-to-date, thankfully they released their mobile app
 
 ### 2. Feed the images into LLM / VLM
 
