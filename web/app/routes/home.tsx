@@ -6,7 +6,7 @@ import { getInterruptions, type Interruption } from "~/api";
 import { Card } from "~/components/card";
 import { Input } from "~/components/input";
 import { InterruptionCard } from "~/components/interruption-card";
-import { getInterruptionBounds } from "~/utils/date";
+import { InterruptionStatus, InterruptionStatusType } from "~/components/interruption-status";
 import type { Route } from "./+types/home";
 import penelcoLogo from "./penelco.png";
 
@@ -64,9 +64,9 @@ export default function Home() {
 		past.sort(newestFirst);
 
 		return [
-			{ key: "upcoming", title: "Upcoming", items: upcoming },
-			{ key: "ongoing", title: "Ongoing", items: ongoing },
-			{ key: "past", title: "Past", items: past },
+			{ key: InterruptionStatusType.Ongoing, items: ongoing },
+			{ key: InterruptionStatusType.Upcoming, items: upcoming },
+			{ key: InterruptionStatusType.Past, items: past },
 		];
 	}, [query.data, term]);
 
@@ -123,11 +123,11 @@ export default function Home() {
 								) : (
 									<MdChevronRight className="size-4 text-slate-500" />
 								)}
-								<span>{group.title}</span>
-								{group.key === "past" && (
+								<InterruptionStatus type={group.key} />
+								{group.key === InterruptionStatusType.Past && (
 									<span className="text-xs font-normal text-slate-500">(up to 14 days ago)</span>
 								)}
-								<span className="ml-auto rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+								<span className="ml-auto rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
 									{group.items.length}
 								</span>
 							</Card>
@@ -136,6 +136,7 @@ export default function Home() {
 								group.items.map(({ item }) => (
 									<InterruptionCard
 										key={item.id}
+										type={group.key}
 										interruption={item}
 										term={term}
 										onPreview={setPreview}

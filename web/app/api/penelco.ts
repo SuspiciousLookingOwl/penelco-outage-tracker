@@ -34,7 +34,7 @@ export interface InterruptionRecord {
 	area: string;
 	subareas: null | string;
 	reason: null | string;
-	type: Type;
+	type: RecordType;
 	createdAt: string;
 	updatedAt: string;
 	recognition: InterruptionRecognition;
@@ -54,7 +54,7 @@ export interface InterruptionRecognition {
 export interface InterruptionRecognitionResponse {
 	area: string[];
 	date: string;
-	type: Type;
+	type: RecordType;
 	reason: null | string;
 	rawText: string;
 	subareas: string[];
@@ -71,7 +71,7 @@ export interface TimeSlot {
 	label: string | null;
 }
 
-export enum Type {
+export enum RecordType {
 	Cancelled = "CANCELLED",
 	Published = "PUBLISHED",
 	Updated = "UPDATED",

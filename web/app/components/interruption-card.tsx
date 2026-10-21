@@ -1,13 +1,14 @@
 import dayjs from "dayjs";
-import { getImageUrl, Type, type Interruption, type InterruptionRecord as InterruptionRecordModel } from "~/api";
+import { getImageUrl, RecordType, type Interruption, type InterruptionRecord as InterruptionRecordModel } from "~/api";
 import { formatDate, formatDateTime, formatTime, formatTimeRange } from "~/utils/date";
 import { Card } from "./card";
 import { Chip } from "./chip";
+import { InterruptionStatus, InterruptionStatusType } from "./interruption-status";
 
-const typeStyles: Record<Type, string> = {
-	[Type.Published]: "bg-sky-500/15 text-sky-300",
-	[Type.Updated]: "bg-amber-500/15 text-amber-300",
-	[Type.Cancelled]: "bg-rose-500/15 text-rose-300",
+const typeStyles: Record<RecordType, string> = {
+	[RecordType.Published]: "bg-sky-500/15 text-sky-300",
+	[RecordType.Updated]: "bg-amber-500/15 text-amber-300",
+	[RecordType.Cancelled]: "bg-rose-500/15 text-rose-300",
 };
 
 function highlight(text: string, term: string) {
@@ -28,17 +29,21 @@ function highlight(text: string, term: string) {
 
 interface InterruptionCardProps {
 	interruption: Interruption;
+	type: InterruptionStatusType;
 	term?: string;
 	onPreview: (src: string) => void;
 }
 
-export function InterruptionCard({ interruption, term = "", onPreview }: InterruptionCardProps) {
+export function InterruptionCard({ interruption, type, term = "", onPreview }: InterruptionCardProps) {
 	const records = [...interruption.records].sort((a, b) => dayjs(b.createdAt).diff(a.createdAt));
 
 	return (
 		<Card className="space-y-3 p-4">
 			<div className="space-y-2">
+				<div className="flex items-center space-x-1.5">
 				<h2 className="font-medium">{highlight(interruption.area, term)}</h2>
+					<InterruptionStatus type={type} className="text-xs" />
+				</div>
 				{interruption.subareas && (
 					<p className="text-sm text-slate-400">{highlight(interruption.subareas, term)}</p>
 				)}
