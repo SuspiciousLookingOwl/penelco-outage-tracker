@@ -5,7 +5,7 @@ interface InterruptionPostProps {
 	id?: string;
 	filter: string;
 	postId: string;
-	timestamp: Date;
+	timestamp: string;
 	content: string;
 	type: string;
 	images: string[];
@@ -20,7 +20,7 @@ export class InterruptionPost {
 	public readonly id: string;
 	public readonly filter: string;
 	public readonly postId: string;
-	public readonly timestamp: Date;
+	public readonly timestamp: string;
 	public readonly content: string;
 	public readonly type: string;
 	public readonly images: string[];

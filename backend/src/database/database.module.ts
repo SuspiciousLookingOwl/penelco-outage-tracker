@@ -2,9 +2,17 @@ import { DynamicModule, Inject, Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { type Connection, KNEX_CONNECTION, ObjectionModule } from "@willsoto/nestjs-objection";
 import type { Knex } from "knex";
-import { InterruptionModel, InterruptionPostModel, InterruptionRecordModel } from "../repositories";
-import { InterruptionRecognitionModel } from "../repositories";
+import { types } from "pg";
+import {
+	InterruptionModel,
+	InterruptionPostModel,
+	InterruptionRecognitionModel,
+	InterruptionRecordModel,
+} from "../repositories";
 import * as initializeMigration from "./migrations/20261019030000_initialize";
+import * as interruptionPostTimestampWithoutTz from "./migrations/20261022113512_interruption_post_timestamp_without_tz";
+
+types.setTypeParser(1114, (value) => value);
 
 type Migration = {
 	up(knex: Knex): Promise<void>;
@@ -14,6 +22,7 @@ type Migration = {
 class StaticMigrationSource {
 	private readonly migrations: Record<string, Migration> = {
 		"20261019030000_initialize": initializeMigration,
+		"20261022113512_interruption_post_timestamp_without_tz": interruptionPostTimestampWithoutTz,
 	};
 
 	public getMigrations(): Promise<string[]> {

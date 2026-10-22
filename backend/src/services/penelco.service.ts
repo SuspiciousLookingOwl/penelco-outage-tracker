@@ -15,8 +15,7 @@ export interface InterruptionResponse {
 	filter: string;
 	id: string;
 	postId: string;
-	/** Instant the post was published. */
-	timestamp: Date;
+	timestamp: string;
 	content: string;
 	type: string;
 	images: string[];
@@ -44,7 +43,7 @@ export class PenelcoService {
 				filter: d.filter,
 				id: d.id,
 				postId: d.post_id,
-				timestamp: new Date(d.time_stamp),
+				timestamp: d.time_stamp,
 				content: d.content,
 				type: d.type,
 				images: d.images,

@@ -7,7 +7,7 @@ export type InterruptionPostModelProps = {
 	postId: string;
 	filter: string;
 	type: string;
-	timestamp: Date;
+	timestamp: string;
 	content: string;
 	images: string[];
 	createdAt: Date;
@@ -19,7 +19,7 @@ export class InterruptionPostModel extends Model {
 	postId!: string;
 	filter!: string;
 	type!: string;
-	timestamp!: Date;
+	timestamp!: string;
 	content!: string;
 	images!: string[];
 	createdAt!: Date;

@@ -163,7 +163,8 @@ export class CronService implements OnModuleInit {
 					return stored;
 				}
 
-				if (isBefore(post.timestamp, cutoff)) {
+				const published = DateUtil.parseDateOrNull(post.timestamp);
+				if (!published || isBefore(published, cutoff)) {
 					this.logger.log(
 						`Reached ${this.config.fetchMaxAgeDays}-day limit at ${post.id} after ${stored.length} new posts.`
 					);
