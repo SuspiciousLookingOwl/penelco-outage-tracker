@@ -13,6 +13,9 @@ export const envSchema = z.object({
 
 	IMAGE_PATH: z.string().min(1).default("./images"),
 
+	BASIC_AUTH_USERNAME: z.string().min(1),
+	BASIC_AUTH_PASSWORD: z.string().min(1),
+
 	POSTGRES_HOST: z.string().min(1).default("127.0.0.1"),
 	POSTGRES_USER: z.string().min(1),
 	POSTGRES_PASSWORD: z.string().min(1),

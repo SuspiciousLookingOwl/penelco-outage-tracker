@@ -64,4 +64,19 @@ export class InterruptionRecognitionRepository {
 
 		return InterruptionRecognitionRepositoryMapper.toDomainEntity(result);
 	}
+
+	public async deleteByPostId(interruptionPostId: string): Promise<string[]> {
+		const rows = await this.recognitionModel
+			.query()
+			.delete()
+			.where("interruption_post_id", interruptionPostId)
+			.returning("id");
+
+		return rows.map((row) => row.id);
+	}
+
+	public async findIdsByPostId(interruptionPostId: string): Promise<string[]> {
+		const rows = await this.recognitionModel.query().select("id").where("interruption_post_id", interruptionPostId);
+		return rows.map((row) => row.id);
+	}
 }

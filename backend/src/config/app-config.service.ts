@@ -18,6 +18,13 @@ export class AppConfigService {
 		return this.config.get("FETCH_MAX_AGE_DAYS", { infer: true });
 	}
 
+	get basicAuth() {
+		return {
+			username: this.config.get("BASIC_AUTH_USERNAME", { infer: true }),
+			password: this.config.get("BASIC_AUTH_PASSWORD", { infer: true }),
+		};
+	}
+
 	get ai() {
 		return {
 			baseUrl: this.config.get("OPENAI_BASE_URL", { infer: true }),

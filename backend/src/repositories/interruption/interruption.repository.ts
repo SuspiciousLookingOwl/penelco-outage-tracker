@@ -55,4 +55,20 @@ export class InterruptionRepository {
 
 		return InterruptionRepositoryMapper.toDomainEntity(result);
 	}
+
+	public async findOrphanIdsByPostId(interruptionPostId: string): Promise<string[]> {
+		const rows = await this.interruptionModel
+			.query()
+			.select("interruptions.id")
+			.leftJoin("interruption_records", "interruption_records.interruption_id", "interruptions.id")
+			.where("interruptions.interruption_post_id", interruptionPostId)
+			.whereNull("interruption_records.id");
+
+		return rows.map((row) => row.id);
+	}
+
+	public async deleteByIds(ids: string[]): Promise<number> {
+		if (!ids.length) return 0;
+		return this.interruptionModel.query().delete().whereIn("id", ids);
+	}
 }

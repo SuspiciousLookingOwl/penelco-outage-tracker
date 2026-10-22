@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { addDays, format, isBefore, isValid, parse, subDays } from "date-fns";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -24,6 +24,7 @@ import { PenelcoService, type InterruptionResponse } from "./penelco.service";
 
 export type RecognizedNotice = z.infer<typeof CronService.INTERRUPTION_SCHEMA>;
 
+// TODO Decouple services
 @Injectable()
 export class CronService implements OnModuleInit {
 	private readonly logger = new Logger(CronService.name);
@@ -82,6 +83,7 @@ export class CronService implements OnModuleInit {
 
 	private isRecognizingUnsuccessful = false;
 	private isFetchingInterruptions = false;
+	private postRecognitionsInProgress = new Set<string>();
 
 	constructor(
 		private readonly penelcoService: PenelcoService,
@@ -140,6 +142,47 @@ export class CronService implements OnModuleInit {
 			this.logger.error(`fetchInterruptions failed: ${error}`);
 		}
 		this.isFetchingInterruptions = false;
+	}
+
+	public async recognizePost(post: InterruptionPost): Promise<void> {
+		if (this.postRecognitionsInProgress.has(post.id)) {
+			throw new BadRequestException(`Recognition for post ${post.id} is already in progress.`);
+		}
+
+		this.postRecognitionsInProgress.add(post.id);
+
+		const recognitionIds = await this.recognitionRepository.deleteByPostId(post.id);
+		await this.recordRepository.deleteByRecognitionIds(recognitionIds);
+		const orphanIds = await this.interruptionRepository.findOrphanIdsByPostId(post.id);
+		await this.interruptionRepository.deleteByIds(orphanIds);
+
+		try {
+			const recognitions = post.images.length
+				? post.images.map(
+						(filename) =>
+							new InterruptionRecognition({
+								interruptionPostId: post.id,
+								filename,
+								success: false,
+								response: {},
+							})
+					)
+				: [
+						new InterruptionRecognition({
+							interruptionPostId: post.id,
+							filename: null,
+							success: false,
+							response: {},
+						}),
+					];
+
+			await Promise.all(recognitions.map((recognition) => this.recognize(post, recognition)));
+			this.logger.log(`Recognized ${recognitions.length} image(s) for post ${post.id}`);
+		} catch (error) {
+			this.logger.error(`Recognition failed for post ${post.id}: ${error}`);
+		} finally {
+			this.postRecognitionsInProgress.delete(post.id);
+		}
 	}
 
 	private async getLatestPosts(): Promise<InterruptionResponse[]> {
@@ -210,7 +253,6 @@ export class CronService implements OnModuleInit {
 			this.logger.log(`Recognizing for post ${post.id}`);
 			const promises: Promise<void>[] = [];
 
-			// TODO make sure recognition is upsert-ed to prevent duplicate entries
 			if (!filenames.length) {
 				const recognition = new InterruptionRecognition({
 					interruptionPostId: post.id,

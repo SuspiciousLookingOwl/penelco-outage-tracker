@@ -60,4 +60,9 @@ export class InterruptionRecordRepository {
 
 		return InterruptionRecordRepositoryMapper.toDomainEntity(result);
 	}
+
+	public async deleteByRecognitionIds(interruptionRecognitionIds: string[]): Promise<number> {
+		if (!interruptionRecognitionIds.length) return 0;
+		return this.recordModel.query().delete().whereIn("interruption_recognition_id", interruptionRecognitionIds);
+	}
 }

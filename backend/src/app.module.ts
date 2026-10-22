@@ -6,6 +6,7 @@ import { AppController } from "./app.controller";
 import { AppConfigService } from "./config/app-config.service";
 import { validateEnv } from "./config/env.validation";
 import { DatabaseModule } from "./database/database.module";
+import { BasicAuthGuard } from "./guards/basic-auth.guard";
 import { InterruptionPostRepository } from "./repositories/interruption-post/interruption-post.repository";
 import { InterruptionRecognitionRepository } from "./repositories/interruption-recognition/interruption-recognition.repository";
 import { InterruptionRecordRepository } from "./repositories/interruption-record/interruption-record.repository";
@@ -28,6 +29,7 @@ import { PenelcoService } from "./services/penelco.service";
 	controllers: [AppController],
 	providers: [
 		AppConfigService,
+		BasicAuthGuard,
 		PenelcoService,
 		InterruptionRepository,
 		InterruptionRecordRepository,

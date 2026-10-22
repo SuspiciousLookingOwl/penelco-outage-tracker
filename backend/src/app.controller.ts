@@ -1,13 +1,22 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, HttpCode, NotFoundException, Param, Post, UseGuards } from "@nestjs/common";
 import { subDays } from "date-fns";
-import { InterruptionRecordRepository, InterruptionRepository } from "./repositories";
+import { BasicAuthGuard } from "./guards/basic-auth.guard";
+import {
+	InterruptionPostRepository,
+	InterruptionRecognitionRepository,
+	InterruptionRecordRepository,
+	InterruptionRepository,
+} from "./repositories";
+import { CronService } from "./services/cron.service";
 
 @Controller()
 export class AppController {
 	constructor(
 		private readonly interruptionRepository: InterruptionRepository,
-		private readonly interruptionRecordRepository: InterruptionRecordRepository
-		// private readonly config: AppConfigService
+		private readonly interruptionRecordRepository: InterruptionRecordRepository,
+		private readonly interruptionPostRepository: InterruptionPostRepository,
+		private readonly interruptionRecognitionRepository: InterruptionRecognitionRepository,
+		private readonly cronService: CronService
 	) {}
 
 	@Get("/interruptions")
@@ -26,6 +35,29 @@ export class AppController {
 			{ interruption: { records: true }, recognition: { post: true } }
 		);
 		return records;
+	}
+
+	@Post("/posts/:id/recognize")
+	@HttpCode(202)
+	@UseGuards(BasicAuthGuard)
+	async recognizePost(@Param("id") id: string) {
+		const post = await this.interruptionPostRepository.getById(id);
+		if (!post) throw new NotFoundException(`Post "${id}" was not found.`);
+
+		const recognitionIds = await this.interruptionRecognitionRepository.findIdsByPostId(id);
+		await this.interruptionRecordRepository.deleteByRecognitionIds(recognitionIds);
+		await this.interruptionRecognitionRepository.deleteByPostId(id);
+
+		const orphanIds = await this.interruptionRepository.findOrphanIdsByPostId(id);
+		await this.interruptionRepository.deleteByIds(orphanIds);
+
+		void this.cronService.recognizePost(post);
+
+		return {
+			postId: id,
+			deletedRecognitions: recognitionIds.length,
+			deletedInterruptions: orphanIds.length,
+		};
 	}
 
 	// Handled by Nginx directly
