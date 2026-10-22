@@ -1,4 +1,6 @@
 import dayjs from "dayjs";
+import { useState } from "react";
+import { MdExpandLess, MdExpandMore } from "react-icons/md";
 import { getImageUrl, RecordType, type Interruption, type InterruptionRecord as InterruptionRecordModel } from "~/api";
 import { formatDate, formatDateTime, formatTime, formatTimeRange, nowPht } from "~/utils/date";
 import { Card } from "./card";
@@ -35,18 +37,31 @@ interface InterruptionCardProps {
 }
 
 export function InterruptionCard({ interruption, type, term = "", onPreview }: InterruptionCardProps) {
+	const [isRecordExpanded, setIsRecordExpanded] = useState(false);
 	const records = [...interruption.records].sort((a, b) => dayjs(b.createdAt).diff(a.createdAt));
+	const lastRecord = records.at(-1);
 
 	return (
 		<Card className="space-y-3 p-4">
-			<div className="space-y-2.5">
-				<div className="flex items-center space-x-1.5">
-					<h2 className="font-medium text-lg">{highlight(interruption.area, term)}</h2>
-					<InterruptionStatus type={type} className="text-xs" />
-				</div>
-				{interruption.subareas && (
-					<p className="text-sm text-slate-300">{highlight(interruption.subareas, term)}</p>
+			<div className="flex space-x-2.5">
+				{lastRecord && (
+					<img
+						src={getImageUrl(lastRecord.recognition?.filename ?? "")}
+						alt="Interruption notice"
+						onClick={() => onPreview(getImageUrl(lastRecord.recognition?.filename ?? ""))}
+						className="aspect-square h-20 cursor-pointer rounded border border-slate-800 object-cover transition-opacity hover:opacity-80"
+					/>
 				)}
+
+				<div className="space-y-2.5 py-0.5">
+					<div className="flex items-center space-x-1.5">
+						<h2 className="font-medium text-lg">{highlight(interruption.area, term)}</h2>
+						<InterruptionStatus type={type} className="text-xs" />
+					</div>
+					{interruption.subareas && (
+						<p className="text-sm text-slate-300">{highlight(interruption.subareas, term)}</p>
+					)}
+				</div>
 			</div>
 
 			<div className="flex flex-wrap items-center gap-1.5">
@@ -66,11 +81,31 @@ export function InterruptionCard({ interruption, type, term = "", onPreview }: I
 			{interruption.reason && <p className="text-sm text-slate-400">{interruption.reason}</p>}
 
 			{records.length > 0 && (
-				<div className="space-y-2.5 border-t border-slate-800 pt-3">
-					<h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">Records</h3>
-					{records.map((record) => (
-						<InterruptionRecord key={record.id} record={record} onPreview={onPreview} />
-					))}
+				<div className="space-y-2.5 pt-3">
+					<button
+						onClick={() => setIsRecordExpanded((value) => !value)}
+						className="text-xs w-full cursor-pointer "
+					>
+						<div className="flex items-center space-x-1.5 text-slate-500 hover:text-slate-400">
+							<h3 className="text-xs font-medium tracking-wide  uppercase">Records ({records.length})</h3>
+							<div className="border-b border-slate-700 grow"></div>
+							<div className="flex items-center">
+								{isRecordExpanded ? (
+									<>
+										<span>(Collapse)</span> <MdExpandLess size={24} />
+									</>
+								) : (
+									<>
+										<span>(Expand)</span> <MdExpandMore size={24} />
+									</>
+								)}
+							</div>
+						</div>
+					</button>
+					{isRecordExpanded &&
+						records.map((record) => (
+							<InterruptionRecord key={record.id} record={record} onPreview={onPreview} />
+						))}
 				</div>
 			)}
 		</Card>
