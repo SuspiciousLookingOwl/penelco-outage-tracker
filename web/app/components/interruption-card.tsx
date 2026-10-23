@@ -66,25 +66,29 @@ export function InterruptionCard({ interruption, type, term = "", onPreview }: I
 
 			<div className="flex flex-wrap items-center gap-1.5">
 				<Chip className="font-medium text-slate-300">{formatDate(interruption.date)}</Chip>
-				{interruption.timeSlots.map((slot, index) => (
-					<Chip key={index} className="flex items-baseline gap-1.5">
-						<span className="font-medium tabular-nums text-slate-200">
-							{formatTime(slot.start) ?? "?"}
-							<span className="text-slate-500"> – </span>
-							{formatTime(slot.end) ?? "?"}
-						</span>
-						<span className="text-xs text-slate-400">
-							({dayjs(slot.start).from(nowPht())}
-							{type === InterruptionStatusType.Ongoing &&
-								slot.end &&
-								", ends " +
-									(dayjs(nowPht()).isAfter(dayjs(slot.end))
-										? "soon"
-										: dayjs(slot.end).from(nowPht()))}
-							)
-						</span>
-					</Chip>
-				))}
+				{interruption.timeSlots.map((slot, index) => {
+					const now = nowPht();
+					const start = dayjs(slot.start);
+					const end = dayjs(slot.end);
+
+					return (
+						<Chip key={index} className="flex items-baseline gap-1.5">
+							<span className="font-medium tabular-nums text-slate-200">
+								{formatTime(slot.start) ?? "?"}
+								<span className="text-slate-500"> – </span>
+								{formatTime(slot.end) ?? "?"}
+							</span>
+							<span className="text-xs text-slate-400">
+								({start.from(now)}
+								{type === InterruptionStatusType.Ongoing &&
+									slot.end &&
+									end.add(15, "minutes") > now &&
+									", ends " + (now.isAfter(end) ? "soon" : end.from(now))}
+								)
+							</span>
+						</Chip>
+					);
+				})}
 			</div>
 
 			{interruption.reason && <p className="text-sm text-slate-400">{interruption.reason}</p>}
