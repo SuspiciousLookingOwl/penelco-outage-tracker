@@ -73,7 +73,16 @@ export function InterruptionCard({ interruption, type, term = "", onPreview }: I
 							<span className="text-slate-500"> – </span>
 							{formatTime(slot.end) ?? "?"}
 						</span>
-						<span className="text-xs text-slate-400">({dayjs(slot.start).from(nowPht())})</span>
+						<span className="text-xs text-slate-400">
+							({dayjs(slot.start).from(nowPht())}
+							{type === InterruptionStatusType.Ongoing &&
+								slot.end &&
+								", ends " +
+									(dayjs(nowPht()).isAfter(dayjs(slot.end))
+										? "soon"
+										: dayjs(slot.end).from(nowPht()))}
+							)
+						</span>
 					</Chip>
 				))}
 			</div>
