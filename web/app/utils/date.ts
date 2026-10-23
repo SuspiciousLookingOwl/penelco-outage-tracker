@@ -35,9 +35,12 @@ export function formatDateTime(value: string) {
 }
 
 export function getInterruptionBounds(item: Interruption): { start: Dayjs; end: Dayjs }[] {
-	return item.timeSlots.map((slot) => {
-		const start = dayjs(slot.start);
-		const end = dayjs(slot.end);
-		return { start, end: end || start.endOf("day") };
-	});
+	return item.timeSlots
+		.map((slot) => {
+			const start = dayjs(slot.start);
+			if (!start.isValid()) return null;
+			const end = slot.end ? dayjs(slot.end) : null;
+			return { start, end: end?.isValid() ? end : start.endOf("day") };
+		})
+		.filter((bound): bound is { start: Dayjs; end: Dayjs } => bound !== null);
 }
