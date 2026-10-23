@@ -34,13 +34,10 @@ export function formatDateTime(value: string) {
 	return date.isValid() ? date.format("MMM D, hh:mm A") : value;
 }
 
-export function getInterruptionBounds(item: Interruption): { start: Dayjs; end: Dayjs } {
-	const day = dayjs(item.date);
-	const starts = item.timeSlots.map((slot) => dayjs(slot.start)).filter((date) => date.isValid());
-	const ends = item.timeSlots.map((slot) => dayjs(slot.end)).filter((date) => date.isValid());
-
-	const start = dayjs.min(starts) ?? day.startOf("day");
-	const end = dayjs.max(ends) ?? day.endOf("day");
-
-	return { start, end: end.isBefore(start) ? day.endOf("day") : end };
+export function getInterruptionBounds(item: Interruption): { start: Dayjs; end: Dayjs }[] {
+	return item.timeSlots.map((slot) => {
+		const start = dayjs(slot.start);
+		const end = dayjs(slot.end);
+		return { start, end: end || start.endOf("day") };
+	});
 }

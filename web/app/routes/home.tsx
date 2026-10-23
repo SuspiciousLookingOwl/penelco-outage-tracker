@@ -49,18 +49,25 @@ export default function Home() {
 		const ongoing: GroupedItem[] = [];
 		const past: GroupedItem[] = [];
 
+		// 15 minute buffer for ongoing interruptions
+		const isOngoing = (start: Dayjs, end: Dayjs) =>
+			!now.isBefore(start.subtract(15, "minute")) && !now.isAfter(end.add(15, "minute"));
+
 		for (const item of query.data ?? []) {
 			if (term && !item.area.toLowerCase().includes(term) && !item.subareas?.toLowerCase().includes(term)) {
 				continue;
 			}
 
-			const { start, end } = getInterruptionBounds(item);
-			const entry: GroupedItem = { item, start, end };
+			const bounds = getInterruptionBounds(item).sort((a, b) => a.start.diff(b.start));
+			if (!bounds.length) continue;
 
-			// 15 minute buffer for ongoing interruptions
-			if (now.isBefore(start.subtract(15, "minute"))) upcoming.push(entry);
-			else if (now.isAfter(end.add(15, "minute"))) past.push(entry);
-			else ongoing.push(entry);
+			const active = bounds.find(({ start, end }) => isOngoing(start, end));
+			const next = bounds.find(({ start }) => now.isBefore(start.subtract(15, "minute")));
+			const last = bounds.reduce((latest, bound) => (bound.end.isAfter(latest.end) ? bound : latest));
+
+			if (active) ongoing.push({ item, ...active });
+			else if (next) upcoming.push({ item, ...next });
+			else past.push({ item, ...last });
 		}
 
 		const newestFirst = (a: GroupedItem, b: GroupedItem) => b.start.diff(a.start);
