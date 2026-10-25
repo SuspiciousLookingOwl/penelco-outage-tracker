@@ -1,12 +1,15 @@
 import { HttpModule } from "@nestjs/axios";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { CqrsModule } from "@nestjs/cqrs";
 import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
+import { CommandHandlers } from "./commands";
 import { AppConfigService } from "./config/app-config.service";
 import { validateEnv } from "./config/env.validation";
 import { DatabaseModule } from "./database/database.module";
 import { BasicAuthGuard } from "./guards/basic-auth.guard";
+import { QueryHandlers } from "./queries";
 import { InterruptionPostRepository } from "./repositories/interruption-post/interruption-post.repository";
 import { InterruptionRecognitionRepository } from "./repositories/interruption-recognition/interruption-recognition.repository";
 import { InterruptionRecordRepository } from "./repositories/interruption-record/interruption-record.repository";
@@ -25,6 +28,7 @@ import { PenelcoService } from "./services/penelco.service";
 		}),
 		HttpModule,
 		DatabaseModule.forRoot(),
+		CqrsModule.forRoot(),
 	],
 	controllers: [AppController],
 	providers: [
@@ -36,6 +40,8 @@ import { PenelcoService } from "./services/penelco.service";
 		InterruptionPostRepository,
 		InterruptionRecognitionRepository,
 		CronService,
+		...CommandHandlers,
+		...QueryHandlers,
 		{
 			provide: OPENAI_OPTIONS,
 			inject: [AppConfigService],
