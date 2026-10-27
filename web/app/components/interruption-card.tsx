@@ -3,6 +3,7 @@ import { useState } from "react";
 import { MdExpandLess, MdExpandMore } from "react-icons/md";
 import { getImageUrl, RecordType, type Interruption, type InterruptionRecord as InterruptionRecordModel } from "~/api";
 import { formatDate, formatDateTime, formatTime, formatTimeRange, nowPht } from "~/utils/date";
+import { normalize } from "~/utils/string";
 import { Card } from "./card";
 import { Chip } from "./chip";
 import { InterruptionStatus, InterruptionStatusType } from "./interruption-status";
@@ -13,21 +14,31 @@ const typeStyles: Record<RecordType, string> = {
 	[RecordType.Cancelled]: "bg-rose-500/15 text-rose-300",
 };
 
-function highlight(text: string, term: string) {
-	if (!term) return text;
+const REGEXP_SPECIALS = /[.*+?^${}()|[\]\\]/g;
 
-	const pattern = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "ig");
+const highlight = (text: string, term: string) => {
+	const needle = normalize(term);
+	if (!needle || !text) return text;
 
-	return text.split(pattern).map((part, index) =>
-		index % 2 === 1 ? (
-			<mark key={index} className="rounded bg-amber-400/30 text-amber-200">
-				{part}
-			</mark>
-		) : (
-			part
-		)
+	const pattern = new RegExp(
+		`(${[...needle].map((char) => `${char.replace(REGEXP_SPECIALS, "\\$&")}\\p{M}*`).join("")})`,
+		"giu"
 	);
-}
+
+	return text
+		.normalize("NFD")
+		.split(pattern)
+		.map((part, index) => ({ text: part, match: index % 2 === 1 }))
+		.map((part, index) =>
+			part.match ? (
+				<mark key={index} className="rounded bg-amber-400/30 text-amber-200">
+					{part.text}
+				</mark>
+			) : (
+				part.text
+			)
+		);
+};
 
 interface InterruptionCardProps {
 	interruption: Interruption;

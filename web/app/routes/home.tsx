@@ -8,6 +8,7 @@ import { Input } from "~/components/input";
 import { InterruptionCard } from "~/components/interruption-card";
 import { InterruptionStatus, InterruptionStatusType } from "~/components/interruption-status";
 import { getInterruptionBounds, nowPht } from "~/utils/date";
+import { normalize } from "~/utils/string";
 import type { Route } from "./+types/home";
 import penelcoLogo from "./penelco.png";
 
@@ -42,8 +43,8 @@ export default function Home() {
 		queryFn: getInterruptions,
 	});
 
-	const term = search.trim().toLowerCase();
 	const groups = useMemo(() => {
+		const term = normalize(search);
 		const now = nowPht();
 		const upcoming: GroupedItem[] = [];
 		const ongoing: GroupedItem[] = [];
@@ -54,7 +55,7 @@ export default function Home() {
 			!now.isBefore(start.subtract(15, "minute")) && !now.isAfter(end.add(15, "minute"));
 
 		for (const item of query.data ?? []) {
-			if (term && !item.area.toLowerCase().includes(term) && !item.subareas?.toLowerCase().includes(term)) {
+			if (term && !normalize(item.area).includes(term) && !normalize(item.subareas).includes(term)) {
 				continue;
 			}
 
@@ -81,7 +82,7 @@ export default function Home() {
 			{ key: InterruptionStatusType.Upcoming, items: upcoming },
 			{ key: InterruptionStatusType.Past, items: past },
 		];
-	}, [query.data, term]);
+	}, [query.data, search]);
 
 	const total = groups.reduce((count, group) => count + group.items.length, 0);
 
@@ -97,7 +98,7 @@ export default function Home() {
 								<h3 className="text-base sm:text-lg font-semibold">Outage Tracker</h3>
 							</div>
 							<span className="text-sm text-slate-400">
-								{term ? `${total} of ${query.data?.length ?? 0}` : total} listed
+								{search ? `${total} of ${query.data?.length ?? 0}` : total} listed
 							</span>
 						</div>
 					</div>
@@ -115,7 +116,7 @@ export default function Home() {
 				{query.isError && <p className="text-sm text-rose-400">Failed to load interruptions.</p>}
 				{!query.isPending && !query.isError && !total && (
 					<p className="text-sm text-slate-400">
-						{term ? `No interruptions match "${search.trim()}".` : "No interruptions found."}
+						{search ? `No interruptions match "${search.trim()}".` : "No interruptions found."}
 					</p>
 				)}
 
@@ -151,7 +152,7 @@ export default function Home() {
 										key={item.id}
 										type={group.key}
 										interruption={item}
-										term={term}
+										highlightedText={search}
 										onPreview={setPreview}
 									/>
 								))}
