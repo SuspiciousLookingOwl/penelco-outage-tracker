@@ -69,12 +69,12 @@ export class AppController {
 		);
 	}
 
-	@Delete("/push/subscription/:fid")
+	@Delete("/push/subscriptions/:fid")
 	async unsubscribe(@Param("fid") fid: string): Promise<UnsubscribeNotificationResult> {
 		return this.commandBus.execute(new UnsubscribeNotificationCommand({ fid }));
 	}
 
-	@Post("/push/subscription/:fid/send")
+	@Post("/push/subscriptions/:fid/send")
 	@HttpCode(200)
 	@UseGuards(BasicAuthGuard)
 	async sendNotification(
