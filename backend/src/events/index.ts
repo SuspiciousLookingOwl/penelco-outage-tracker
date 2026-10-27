@@ -1,1 +1,1 @@
-export * from "./interruption-record-created.event";
+export * from "./interruption-records-created.event";

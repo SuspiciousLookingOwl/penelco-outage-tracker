@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { EventBus } from "@nestjs/cqrs";
 import { Cron } from "@nestjs/schedule";
-import { addDays, format, isBefore, isValid, parse, subDays } from "date-fns";
+import { addDays, isBefore, subDays } from "date-fns";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
@@ -14,19 +14,18 @@ import {
 	InterruptionRecord,
 	InterruptionRecordType,
 } from "../entities";
-import { InterruptionRecordCreatedEvent } from "../events";
+import { InterruptionRecordsCreatedEvent } from "../events";
 import { InterruptionPostRepository } from "../repositories/interruption-post/interruption-post.repository";
 import { InterruptionRecognitionRepository } from "../repositories/interruption-recognition/interruption-recognition.repository";
 import { InterruptionRecordRepository } from "../repositories/interruption-record/interruption-record.repository";
 import { InterruptionRepository } from "../repositories/interruption/interruption.repository";
 import { RandomUtil } from "../utils";
-import { DateUtil } from "../utils/date.util";
+import { DATE_FORMAT, DateUtil } from "../utils/date.util";
 import { OpenAiService } from "./openai.service";
 import { PenelcoService, type InterruptionResponse } from "./penelco.service";
 
 export type RecognizedNotice = z.infer<typeof CronService.INTERRUPTION_SCHEMA>;
 
-// TODO Decouple services
 @Injectable()
 export class CronService implements OnModuleInit {
 	private readonly logger = new Logger(CronService.name);
@@ -108,26 +107,34 @@ export class CronService implements OnModuleInit {
 		if (this.isRecognizingUnsuccessful) return;
 
 		this.isRecognizingUnsuccessful = true;
-
 		this.logger.log(`Starting recognizeUnsuccessful at ${new Date().toISOString()}`);
-		try {
-			const unsuccessfulRecognition = await this.recognitionRepository.get({ success: false }, { post: true });
 
-			for (const recognition of unsuccessfulRecognition) {
-				const post = await this.postRepository.getById(recognition.interruptionPostId);
+		try {
+			const pending = await this.recognitionRepository.get({ success: false }, { post: true });
+
+			const byPost = new Map<string, InterruptionRecognition[]>();
+			for (const recognition of pending) {
+				const group = byPost.get(recognition.interruptionPostId) ?? [];
+				group.push(recognition);
+				byPost.set(recognition.interruptionPostId, group);
+			}
+
+			for (const [postId, recognitions] of byPost) {
+				const post = await this.postRepository.getById(postId);
 				if (!post) {
-					this.logger.warn(`Post ${recognition.interruptionPostId} no longer exists, skipping recognition.`);
+					this.logger.warn(`Post ${postId} no longer exists, skipping recognition.`);
 					continue;
 				}
 
-				await this.recognize(post, recognition);
+				await this.recognizeAll(post, recognitions);
 			}
 
 			this.logger.log(`Finished recognizeUnsuccessful at ${new Date().toISOString()}`);
 		} catch (error) {
 			this.logger.error(`recognizeUnsuccessful failed: ${error}`);
+		} finally {
+			this.isRecognizingUnsuccessful = false;
 		}
-		this.isRecognizingUnsuccessful = false;
 	}
 
 	@Cron("*/30 * * * *")
@@ -136,15 +143,118 @@ export class CronService implements OnModuleInit {
 
 		this.isFetchingInterruptions = true;
 		this.logger.log(`Starting fetchInterruptions at ${new Date().toISOString()}`);
+
 		try {
-			const stored = await this.getLatestPosts();
-			if (stored.length) await this.extractInterruptions(stored.reverse());
+			const cutoff = subDays(new Date(), this.config.fetchMaxAgeDays);
+
+			const storedIds = new Set<string>();
+			const latestId = await this.postRepository.getLatestPostId();
+			if (latestId) storedIds.add(latestId);
+
+			const rawPosts: InterruptionResponse[] = [];
+
+			for (let page = 0; page < CronService.FETCH_MAX_PAGES; page++) {
+				const start = page * CronService.FETCH_PAGE_SIZE;
+				this.logger.log(`Fetching posts ${start}-${start + CronService.FETCH_PAGE_SIZE} (page: ${page})`);
+				const batch = await this.penelcoService.getInterruptions(start, CronService.FETCH_PAGE_SIZE);
+
+				if (!batch.length) break;
+
+				let stop = false;
+
+				for (const post of batch) {
+					if (storedIds.has(post.id)) {
+						this.logger.log(`Reached already stored post ${post.id} after ${rawPosts.length} new posts.`);
+						stop = true;
+						break;
+					}
+
+					const published = DateUtil.parseDateOrNull(post.timestamp);
+					if (!published || isBefore(published, cutoff)) {
+						this.logger.log(
+							`Reached ${this.config.fetchMaxAgeDays}-day limit at ${post.id} after ${rawPosts.length} new posts.`
+						);
+						stop = true;
+						break;
+					}
+
+					rawPosts.push(post);
+				}
+
+				if (stop) break;
+			}
+
+			if (rawPosts.length >= CronService.FETCH_MAX_PAGES * CronService.FETCH_PAGE_SIZE) {
+				this.logger.warn(`Stopped after ${CronService.FETCH_MAX_PAGES} pages without finding a stored post.`);
+			}
+
+			const directory = resolve(this.config.imagePath);
+			await mkdir(directory, { recursive: true });
+
+			for (const rawPost of rawPosts.reverse()) {
+				const filenames: string[] = [];
+
+				for (const [index, base64] of rawPost.images.entries()) {
+					try {
+						const clean = base64.replace(/^data:[^;]+;base64,/, "");
+						const buffer = await sharp(Buffer.from(clean, "base64"))
+							.resize(CronService.IMAGE_MAX_SIZE, CronService.IMAGE_MAX_SIZE, {
+								fit: "inside",
+								withoutEnlargement: true,
+							})
+							.webp({ quality: CronService.IMAGE_WEBP_QUALITY })
+							.toBuffer();
+
+						const filename = `${rawPost.id}_${index}_${RandomUtil.randomString(8)}.webp`;
+						await writeFile(join(directory, filename), buffer);
+						filenames.push(filename);
+					} catch (error) {
+						this.logger.error(`Failed to write an image of ${rawPost.id}: ${error}`);
+					}
+				}
+
+				this.logger.log(`Storing post ${rawPost.id}`);
+				const post = await this.postRepository.upsert(
+					new InterruptionPost({
+						id: rawPost.id,
+						postId: rawPost.postId,
+						filter: rawPost.filter,
+						type: rawPost.type,
+						timestamp: rawPost.timestamp,
+						content: rawPost.content,
+						images: filenames,
+					})
+				);
+
+				this.logger.log(`Recognizing for post ${post.id}`);
+				const recognitions: InterruptionRecognition[] = [];
+
+				for (const recognition of this.createRecognitions(post, filenames)) {
+					const [existing] = await this.recognitionRepository.get({
+						interruptionPostId: post.id,
+						filename: recognition.filename,
+						limit: 1,
+					});
+
+					if (existing?.success) {
+						this.logger.log(
+							`Skipped recognition for post ${post.id} with filename ${recognition.filename}`
+						);
+						continue;
+					}
+
+					recognitions.push(recognition);
+				}
+
+				await this.recognizeAll(post, recognitions);
+			}
 
 			this.logger.log(`Finished fetchInterruptions at ${new Date().toISOString()}`);
 		} catch (error) {
 			this.logger.error(`fetchInterruptions failed: ${error}`);
+		} finally {
+			this.isFetchingInterruptions = false;
 		}
-		this.isFetchingInterruptions = false;
 	}
 
 	public async recognizePost(post: InterruptionPost): Promise<void> {
@@ -154,32 +264,14 @@ export class CronService implements OnModuleInit {
 
 		this.postRecognitionsInProgress.add(post.id);
 
-		const recognitionIds = await this.recognitionRepository.deleteByPostId(post.id);
-		await this.recordRepository.deleteByRecognitionIds(recognitionIds);
-		const orphanIds = await this.interruptionRepository.findOrphanIdsByPostId(post.id);
-		await this.interruptionRepository.deleteByIds(orphanIds);
-
 		try {
-			const recognitions = post.images.length
-				? post.images.map(
-						(filename) =>
-							new InterruptionRecognition({
-								interruptionPostId: post.id,
-								filename,
-								success: false,
-								response: {},
-							})
-					)
-				: [
-						new InterruptionRecognition({
-							interruptionPostId: post.id,
-							filename: null,
-							success: false,
-							response: {},
-						}),
-					];
+			const recognitionIds = await this.recognitionRepository.deleteByPostId(post.id);
+			await this.recordRepository.deleteByRecognitionIds(recognitionIds);
+			const orphanIds = await this.interruptionRepository.findOrphanIdsByPostId(post.id);
+			await this.interruptionRepository.deleteByIds(orphanIds);
 
-			await Promise.all(recognitions.map((recognition) => this.recognize(post, recognition)));
+			const recognitions = this.createRecognitions(post, post.images);
+			await this.recognizeAll(post, recognitions);
 			this.logger.log(`Recognized ${recognitions.length} image(s) for post ${post.id}`);
 		} catch (error) {
 			this.logger.error(`Recognition failed for post ${post.id}: ${error}`);
@@ -188,300 +280,148 @@ export class CronService implements OnModuleInit {
 		}
 	}
 
-	private async getLatestPosts(): Promise<InterruptionResponse[]> {
-		const stored: InterruptionResponse[] = [];
-		const cutoff = subDays(new Date(), this.config.fetchMaxAgeDays);
+	private createRecognitions(post: InterruptionPost, filenames: string[]): InterruptionRecognition[] {
+		const targets: (string | null)[] = filenames.length ? filenames : [null];
 
-		const storedIds = new Set<string>();
-		const latestStoredId = await this.postRepository.getLatestPostId();
-		if (latestStoredId) storedIds.add(latestStoredId);
-
-		for (let page = 0; page < CronService.FETCH_MAX_PAGES; page++) {
-			const start = page * CronService.FETCH_PAGE_SIZE;
-			this.logger.log(`Fetching posts ${start}-${start + CronService.FETCH_PAGE_SIZE} (page: ${page})`);
-			const batch = await this.penelcoService.getInterruptions(start, CronService.FETCH_PAGE_SIZE);
-
-			if (!batch.length) break;
-
-			for (const post of batch) {
-				if (storedIds.has(post.id)) {
-					this.logger.log(`Reached already stored post ${post.id} after ${stored.length} new posts.`);
-					return stored;
-				}
-
-				const published = DateUtil.parseDateOrNull(post.timestamp);
-				if (!published || isBefore(published, cutoff)) {
-					this.logger.log(
-						`Reached ${this.config.fetchMaxAgeDays}-day limit at ${post.id} after ${stored.length} new posts.`
-					);
-					return stored;
-				}
-
-				stored.push(post);
-			}
-		}
-
-		if (stored.length >= CronService.FETCH_MAX_PAGES * CronService.FETCH_PAGE_SIZE) {
-			this.logger.warn(`Stopped after ${CronService.FETCH_MAX_PAGES} pages without finding a stored post.`);
-		}
-
-		return stored;
-	}
-
-	private async extractInterruptions(rawPosts: InterruptionResponse[]): Promise<void> {
-		for (const rawPost of rawPosts) {
-			const filenames: string[] = [];
-
-			for (const [index, base64] of rawPost.images.entries()) {
-				try {
-					filenames.push(await this.writeImage(rawPost.id, index, base64));
-				} catch (error) {
-					this.logger.error(`Failed to write an image of ${rawPost.id}: ${error}`);
-				}
-			}
-
-			this.logger.log(`Storing post ${rawPost.id}`);
-			const post = await this.postRepository.upsert(
-				new InterruptionPost({
-					id: rawPost.id,
-					postId: rawPost.postId,
-					filter: rawPost.filter,
-					type: rawPost.type,
-					timestamp: rawPost.timestamp,
-					content: rawPost.content,
-					images: filenames,
-				})
-			);
-
-			this.logger.log(`Recognizing for post ${post.id}`);
-			const promises: Promise<void>[] = [];
-
-			if (!filenames.length) {
-				const recognition = new InterruptionRecognition({
-					interruptionPostId: post.id,
-					filename: null,
-					success: false,
-					response: {},
-				});
-
-				const [recognitionExists] = await this.recognitionRepository.get({
-					interruptionPostId: post.id,
-					filename: recognition.filename,
-					limit: 1,
-				});
-
-				if (!recognitionExists?.success) {
-					promises.push(this.recognize(post, recognition));
-				} else {
-					this.logger.log(`Skipped recognition for post ${post.id} with filename ${recognition.filename}`);
-				}
-			}
-
-			for (const filename of filenames) {
-				const recognition = new InterruptionRecognition({
+		return targets.map(
+			(filename) =>
+				new InterruptionRecognition({
 					interruptionPostId: post.id,
 					filename,
 					success: false,
 					response: {},
-				});
-
-				const [recognitionExists] = await this.recognitionRepository.get({
-					interruptionPostId: post.id,
-					filename: recognition.filename,
-					limit: 1,
-				});
-
-				if (recognitionExists?.success) {
-					this.logger.log(`Skipped recognition for post ${post.id} with filename ${recognition.filename}`);
-					continue;
-				}
-
-				promises.push(this.recognize(post, recognition));
-			}
-			await Promise.all(promises);
-		}
+				})
+		);
 	}
 
-	private async recognize(post: InterruptionPost, recognition: InterruptionRecognition): Promise<void> {
-		if (recognition.success) return;
+	private async recognizeAll(post: InterruptionPost, recognitions: InterruptionRecognition[]): Promise<void> {
+		if (!recognitions.length) return;
 
-		const { result, success } = await this.runRecognition(recognition.filename, post.content);
+		const created = await Promise.all(
+			recognitions.map(async (recognition): Promise<InterruptionRecord | null> => {
+				if (recognition.success) return null;
 
-		recognition.success = success;
-		recognition.response = result === null ? {} : result;
+				let result: RecognizedNotice | null = null;
 
-		await this.recognitionRepository.upsert(recognition);
+				try {
+					let prompt = CronService.RECOGNIZE_PROMPT;
+					if (post.content) prompt += `\n${CronService.EXTRA_CONTENT_PROMPT} ${post.content}`;
 
-		if (!success) return;
+					const images: string[] = [];
+					if (recognition.filename) {
+						const base64 = await readFile(join(resolve(this.config.imagePath), recognition.filename));
+						images.push(base64.toString("base64"));
+					}
 
-		const date = result ? DateUtil.parseCalendarDateOrNull(result.date) : null;
-		if (!result || !date) return;
+					result = await this.openAiService.prompt(prompt, {
+						images,
+						responseFormat: CronService.INTERRUPTION_SCHEMA,
+					});
+					this.logger.log(`Recognized image ${recognition.filename}`);
+				} catch (error) {
+					this.logger.error(`Recognition failed for ${recognition.filename}: ${error}`);
+				}
 
-		let existing =
-			result.type === InterruptionRecordType.PUBLISHED ? null : await this.findSameInterruption(result, date);
+				recognition.success = result !== null;
+				recognition.response = result ?? {};
+				await this.recognitionRepository.upsert(recognition);
 
-		if (existing) {
-			existing.reason = result.reason;
-			if (result.timeSlots.length) {
-				existing.timeSlots = result.timeSlots.map((slot) => ({
-					start: this.formatTime(date, slot.from),
-					end: this.formatTime(date, slot.to),
-					label: slot.label,
-				}));
-			}
+				if (!result) return null;
 
-			await this.interruptionRepository.upsert(existing);
-		} else {
-			existing = await this.interruptionRepository.upsert(
-				new Interruption({
-					interruptionPostId: post.id,
+				const date = DateUtil.parseCalendarDateOrNull(result.date);
+				if (!date) return null;
+
+				const details = {
 					date,
-					timeSlots: result.timeSlots.map((slot) => ({
-						start: this.formatTime(date, slot.from),
-						end: this.formatTime(date, slot.to),
-						label: slot.label,
-					})),
+					timeSlots: DateUtil.toTimeSlots(date, result.timeSlots),
 					area: result.area.join(", ") || "unknown",
-					subareas: result.subareas.length > 0 ? result.subareas.join(", ") : null,
-					reason: result.reason,
-				})
-			);
-		}
+					subareas: result.subareas.length ? result.subareas.join(", ") : null,
+				};
 
-		const record = await this.recordRepository.upsert(
-			new InterruptionRecord({
-				interruptionId: existing.id,
-				interruptionRecognitionId: recognition.id,
-				date,
-				timeSlots: result.timeSlots.map((slot) => ({
-					start: this.formatTime(date, slot.from),
-					end: this.formatTime(date, slot.to),
-					label: slot.label,
-				})),
-				area: result.area.join(", ") || "unknown",
-				subareas: result.subareas.length > 0 ? result.subareas.join(", ") : null,
-				reason: result.reason,
-				type: result.type,
+				let match: Interruption | null = null;
+
+				if (result.type !== InterruptionRecordType.PUBLISHED) {
+					const candidates = await this.interruptionRepository.get({
+						dateFrom: subDays(date, 1),
+						dateTo: addDays(date, 1),
+					});
+
+					if (candidates.length) {
+						const prompt = `${CronService.MATCH_PROMPT}
+							Notice:
+							${JSON.stringify(
+								{
+									type: result.type,
+									date: DateUtil.format(date, DATE_FORMAT),
+									dayOfWeek: result.dayOfWeek,
+									timeSlots: result.timeSlots,
+									formerTimeSlots: result.formerTimeSlots,
+									area: result.area,
+									subareas: result.subareas,
+									reason: result.reason,
+									restorationTime: result.restorationTime,
+									rawText: result.rawText,
+								},
+								null,
+								2
+							)}
+							Candidates:
+							${JSON.stringify(
+								candidates.map(({ id, date: candidateDate, timeSlots, area, subareas, reason }) => ({
+									id,
+									date: DateUtil.format(candidateDate, DATE_FORMAT),
+									timeSlots,
+									area,
+									subareas,
+									reason,
+								})),
+								null,
+								2
+							)}`;
+
+						try {
+							const matched = await this.openAiService.prompt(prompt, {
+								responseFormat: CronService.MATCH_SCHEMA,
+							});
+
+							if (matched.id) {
+								match = candidates.find((candidate) => candidate.id === matched.id) ?? null;
+							}
+						} catch (error) {
+							this.logger.error(`Matching interruption for ${date.toISOString()} failed: ${error}`);
+						}
+					}
+
+					if (match) {
+						match.reason = result.reason;
+						if (result.timeSlots.length) match.timeSlots = details.timeSlots;
+					}
+				}
+
+				const interruption = await this.interruptionRepository.upsert(
+					match ??
+						new Interruption({
+							interruptionPostId: post.id,
+							...details,
+							reason: result.reason,
+						})
+				);
+
+				return this.recordRepository.upsert(
+					new InterruptionRecord({
+						interruptionId: interruption.id,
+						interruptionRecognitionId: recognition.id,
+						...details,
+						reason: result.reason,
+						type: result.type,
+					})
+				);
 			})
 		);
 
-		void this.eventBus.publish(new InterruptionRecordCreatedEvent({ record }));
-	}
+		const records = created.filter((record): record is InterruptionRecord => record !== null);
+		if (!records.length) return;
 
-	private async runRecognition(
-		filename: string | null,
-		content?: string
-	): Promise<{ result: RecognizedNotice | null; success: boolean }> {
-		try {
-			let prompt = CronService.RECOGNIZE_PROMPT;
-			if (content) prompt += `\n${CronService.EXTRA_CONTENT_PROMPT} ${content}`;
-
-			const images: string[] = [];
-			if (filename) {
-				const base64 = await readFile(join(resolve(this.config.imagePath), filename));
-				images.push(base64.toString("base64"));
-			}
-			const result = await this.openAiService.prompt(prompt, {
-				images,
-				responseFormat: CronService.INTERRUPTION_SCHEMA,
-			});
-			this.logger.log(`Recognized image ${filename}`);
-
-			return { result, success: true };
-		} catch (error) {
-			this.logger.error(`Recognition failed for ${filename}: ${error}`);
-
-			return { result: null, success: false };
-		}
-	}
-
-	private async findSameInterruption(notice: RecognizedNotice, date: Date): Promise<Interruption | null> {
-		const candidates = await this.interruptionRepository.get({
-			dateFrom: subDays(date, 1),
-			dateTo: addDays(date, 1),
-		});
-
-		if (!candidates.length) return null;
-
-		const noticeString = JSON.stringify(this.toMatchNotice(notice, date), null, 2);
-		const candidatesString = JSON.stringify(
-			candidates.map((candidate) => this.toMatchCandidate(candidate)),
-			null,
-			2
-		);
-
-		const prompt = `
-			${CronService.MATCH_PROMPT}
-			Notice:
-			${noticeString}
-			Candidates:
-			${candidatesString}
-		`;
-
-		let match: z.infer<typeof CronService.MATCH_SCHEMA>;
-		try {
-			match = await this.openAiService.prompt(prompt, { responseFormat: CronService.MATCH_SCHEMA });
-		} catch (error) {
-			this.logger.error(`Matching interruption for ${date.toISOString()} failed: ${error}`);
-			return null;
-		}
-
-		if (!match.id) return null;
-
-		return candidates.find((candidate) => candidate.id === match.id) ?? null;
-	}
-
-	private toMatchNotice(notice: RecognizedNotice, date: Date) {
-		return {
-			type: notice.type,
-			date: DateUtil.toDateOnlyString(date),
-			dayOfWeek: notice.dayOfWeek,
-			timeSlots: notice.timeSlots,
-			formerTimeSlots: notice.formerTimeSlots,
-			area: notice.area,
-			subareas: notice.subareas,
-			reason: notice.reason,
-			restorationTime: notice.restorationTime,
-			rawText: notice.rawText,
-		};
-	}
-
-	private toMatchCandidate(candidate: Interruption) {
-		return {
-			id: candidate.id,
-			date: DateUtil.toDateOnlyString(candidate.date),
-			timeSlots: candidate.timeSlots,
-			area: candidate.area,
-			subareas: candidate.subareas,
-			reason: candidate.reason,
-		};
-	}
-
-	private async writeImage(postId: string, index: number, base64: string): Promise<string> {
-		const directory = resolve(this.config.imagePath);
-		await mkdir(directory, { recursive: true });
-
-		const clean = base64.replace(/^data:[^;]+;base64,/, "");
-
-		const buffer = await sharp(Buffer.from(clean, "base64"))
-			.resize(CronService.IMAGE_MAX_SIZE, CronService.IMAGE_MAX_SIZE, { fit: "inside", withoutEnlargement: true })
-			.webp({ quality: CronService.IMAGE_WEBP_QUALITY })
-			.toBuffer();
-
-		const filename = `${postId}_${index}_${RandomUtil.randomString(8)}.webp`;
-
-		await writeFile(join(directory, filename), buffer);
-
-		return filename;
-	}
-
-	private formatTime(date: Date, hhmm: string | null): string | null {
-		if (!hhmm) return null;
-
-		const time = parse(hhmm.trim(), "H:mm", date);
-		if (!isValid(time)) return null;
-
-		const dateOnly = DateUtil.toDateOnlyString(date);
-		return dateOnly ? `${dateOnly} ${format(time, "HH:mm:ss")}` : null;
+		void this.eventBus.publish(new InterruptionRecordsCreatedEvent({ records }));
 	}
 }

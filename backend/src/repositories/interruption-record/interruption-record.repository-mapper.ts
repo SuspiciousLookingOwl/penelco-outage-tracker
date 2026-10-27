@@ -1,5 +1,5 @@
 import { InterruptionRecord } from "../../entities";
-import { DateUtil } from "../../utils/date.util";
+import { DATE_TIME_FORMAT, DateUtil } from "../../utils/date.util";
 import { InterruptionRecognitionRepositoryMapper } from "../interruption-recognition/interruption-recognition.repository-mapper";
 import { InterruptionRepositoryMapper } from "../interruption/interruption.repository-mapper";
 import type { InterruptionRecordModel, InterruptionRecordModelProps } from "./interruption-record.model";
@@ -13,8 +13,8 @@ export class InterruptionRecordRepositoryMapper {
 			date: entity.date,
 			timeSlots: entity.timeSlots.map((slot) => ({
 				// Stored as timezone-less "yyyy-MM-dd HH:mm:ss" strings.
-				start: DateUtil.toDateTimeStringNoTz(slot.start),
-				end: DateUtil.toDateTimeStringNoTz(slot.end),
+				start: DateUtil.format(slot.start, DATE_TIME_FORMAT),
+				end: DateUtil.format(slot.end, DATE_TIME_FORMAT),
 				label: slot.label,
 			})),
 			area: entity.area,
