@@ -43,11 +43,11 @@ const highlight = (text: string, term: string) => {
 interface InterruptionCardProps {
 	interruption: Interruption;
 	type: InterruptionStatusType;
-	term?: string;
+	highlightedText?: string;
 	onPreview: (src: string) => void;
 }
 
-export function InterruptionCard({ interruption, type, term = "", onPreview }: InterruptionCardProps) {
+export function InterruptionCard({ interruption, type, highlightedText = "", onPreview }: InterruptionCardProps) {
 	const [isRecordExpanded, setIsRecordExpanded] = useState(false);
 	const records = [...interruption.records].sort((a, b) => dayjs(b.createdAt).diff(a.createdAt));
 	const lastRecord = records.at(-1);
@@ -66,11 +66,11 @@ export function InterruptionCard({ interruption, type, term = "", onPreview }: I
 
 				<div className="space-y-2.5 py-0.5">
 					<div className="flex items-center space-x-1.5">
-						<h2 className="font-medium text-lg">{highlight(interruption.area, term)}</h2>
+						<h2 className="font-medium text-lg">{highlight(interruption.area, highlightedText)}</h2>
 						<InterruptionStatus type={type} className="text-xs" />
 					</div>
 					{interruption.subareas && (
-						<p className="text-sm text-slate-300">{highlight(interruption.subareas, term)}</p>
+						<p className="text-sm text-slate-300">{highlight(interruption.subareas, highlightedText)}</p>
 					)}
 				</div>
 			</div>
