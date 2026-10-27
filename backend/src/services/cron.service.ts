@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { EventBus } from "@nestjs/cqrs";
 import { Cron } from "@nestjs/schedule";
 import { addDays, format, isBefore, isValid, parse, subDays } from "date-fns";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -13,6 +14,7 @@ import {
 	InterruptionRecord,
 	InterruptionRecordType,
 } from "../entities";
+import { InterruptionRecordCreatedEvent } from "../events";
 import { InterruptionPostRepository } from "../repositories/interruption-post/interruption-post.repository";
 import { InterruptionRecognitionRepository } from "../repositories/interruption-recognition/interruption-recognition.repository";
 import { InterruptionRecordRepository } from "../repositories/interruption-record/interruption-record.repository";
@@ -92,7 +94,8 @@ export class CronService implements OnModuleInit {
 		private readonly interruptionRepository: InterruptionRepository,
 		private readonly recordRepository: InterruptionRecordRepository,
 		private readonly openAiService: OpenAiService,
-		private readonly config: AppConfigService
+		private readonly config: AppConfigService,
+		private readonly eventBus: EventBus
 	) {}
 
 	onModuleInit() {
@@ -345,7 +348,7 @@ export class CronService implements OnModuleInit {
 			);
 		}
 
-		await this.recordRepository.upsert(
+		const record = await this.recordRepository.upsert(
 			new InterruptionRecord({
 				interruptionId: existing.id,
 				interruptionRecognitionId: recognition.id,
@@ -361,6 +364,8 @@ export class CronService implements OnModuleInit {
 				type: result.type,
 			})
 		);
+
+		void this.eventBus.publish(new InterruptionRecordCreatedEvent({ record }));
 	}
 
 	private async runRecognition(

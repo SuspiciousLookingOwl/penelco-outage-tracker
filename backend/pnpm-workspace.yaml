@@ -1,4 +1,6 @@
 allowBuilds:
+  '@firebase/util': true
   '@nestjs/core': false
   '@swc/core': false
+  protobufjs: true
   tesseract.js: false

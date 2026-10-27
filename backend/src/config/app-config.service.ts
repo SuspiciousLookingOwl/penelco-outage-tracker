@@ -34,4 +34,10 @@ export class AppConfigService {
 			timeoutMs: this.config.get("OPENAI_TIMEOUT_MS", { infer: true }),
 		};
 	}
+
+	get firebase() {
+		return {
+			serviceAccountPath: this.config.get("FIREBASE_SERVICE_ACCOUNT_PATH", { infer: true }) ?? null,
+		};
+	}
 }

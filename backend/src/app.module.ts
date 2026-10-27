@@ -9,14 +9,17 @@ import { AppConfigService } from "./config/app-config.service";
 import { validateEnv } from "./config/env.validation";
 import { DatabaseModule } from "./database/database.module";
 import { BasicAuthGuard } from "./guards/basic-auth.guard";
+import { Listeners } from "./listeners";
 import { QueryHandlers } from "./queries";
 import { InterruptionPostRepository } from "./repositories/interruption-post/interruption-post.repository";
 import { InterruptionRecognitionRepository } from "./repositories/interruption-recognition/interruption-recognition.repository";
 import { InterruptionRecordRepository } from "./repositories/interruption-record/interruption-record.repository";
 import { InterruptionRepository } from "./repositories/interruption/interruption.repository";
+import { NotificationSubscriptionRepository } from "./repositories/notification-subscription/notification-subscription.repository";
 import { CronService } from "./services/cron.service";
 import { OPENAI_OPTIONS, OpenAiService, OpenAiServiceOptions } from "./services/openai.service";
 import { PenelcoService } from "./services/penelco.service";
+import { PushService } from "./services/push.service";
 
 @Module({
 	imports: [
@@ -39,9 +42,12 @@ import { PenelcoService } from "./services/penelco.service";
 		InterruptionRecordRepository,
 		InterruptionPostRepository,
 		InterruptionRecognitionRepository,
+		NotificationSubscriptionRepository,
+		PushService,
 		CronService,
 		...CommandHandlers,
 		...QueryHandlers,
+		...Listeners,
 		{
 			provide: OPENAI_OPTIONS,
 			inject: [AppConfigService],

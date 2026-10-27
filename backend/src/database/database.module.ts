@@ -8,9 +8,11 @@ import {
 	InterruptionPostModel,
 	InterruptionRecognitionModel,
 	InterruptionRecordModel,
+	NotificationSubscriptionModel,
 } from "../repositories";
 import * as initializeMigration from "./migrations/20261019030000_initialize";
 import * as interruptionPostTimestampWithoutTz from "./migrations/20261022113512_interruption_post_timestamp_without_tz";
+import * as pushNotificationsMigration from "./migrations/20261026174237_push_notifications";
 
 types.setTypeParser(1114, (value) => value);
 
@@ -23,6 +25,7 @@ class StaticMigrationSource {
 	private readonly migrations: Record<string, Migration> = {
 		"20261019030000_initialize": initializeMigration,
 		"20261022113512_interruption_post_timestamp_without_tz": interruptionPostTimestampWithoutTz,
+		"20261026174237_push_notifications": pushNotificationsMigration,
 	};
 
 	public getMigrations(): Promise<string[]> {
@@ -47,6 +50,7 @@ class StaticMigrationSource {
 			InterruptionRecordModel,
 			InterruptionPostModel,
 			InterruptionRecognitionModel,
+			NotificationSubscriptionModel,
 		]),
 	],
 	exports: [ObjectionModule],
