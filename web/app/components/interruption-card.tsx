@@ -64,8 +64,8 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 					/>
 				)}
 
-				<div className="space-y-2.5 py-0.5">
-					<div className="flex items-center space-x-1.5">
+				<div className="space-y-1.5 sm:space-y-2.5 py-0.5">
+					<div className="flex flex-col-reverse sm:flex-row sm:items-center space-x-1.5 space-y-1.5 space-y-reverse sm:space-y-0">
 						<h2 className="font-medium text-lg">{highlight(interruption.area, highlightedText)}</h2>
 						<InterruptionStatus type={type} className="text-xs" />
 					</div>
