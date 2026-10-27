@@ -65,7 +65,7 @@ export function InterruptionCard({ interruption, type, term = "", onPreview }: I
 			</div>
 
 			<div className="flex flex-wrap items-center gap-1.5">
-				<Chip className="font-medium text-slate-300">{formatDate(interruption.date)}</Chip>
+				<Chip className="font-medium text-slate-200">{formatDate(interruption.date)}</Chip>
 				{interruption.timeSlots.map((slot, index) => {
 					const now = nowPht();
 					const start = dayjs(slot.start);
