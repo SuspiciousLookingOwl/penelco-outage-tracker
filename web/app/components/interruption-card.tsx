@@ -66,11 +66,15 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 
 				<div className="space-y-1.5 sm:space-y-2.5 py-0.5">
 					<div className="flex flex-col-reverse sm:flex-row sm:items-center space-x-1.5 space-y-1.5 space-y-reverse sm:space-y-0">
-						<h2 className="font-medium text-lg">{highlight(interruption.area, highlightedText)}</h2>
+						<h2 className="font-medium text-lg text-justify">
+							{highlight(interruption.area, highlightedText)}
+						</h2>
 						<InterruptionStatus type={type} className="text-xs" />
 					</div>
 					{interruption.subareas && (
-						<p className="text-sm text-slate-300">{highlight(interruption.subareas, highlightedText)}</p>
+						<p className="text-sm text-slate-300 text-justify">
+							{highlight(interruption.subareas, highlightedText)}
+						</p>
 					)}
 				</div>
 			</div>
@@ -103,8 +107,13 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 			</div>
 
 			{interruption.reason && <p className="text-sm text-slate-400">{interruption.reason}</p>}
+			{lastRecord && (
+				<p className="text-xs text-slate-500">
+					Posted at: {formatDateTime(lastRecord.recognition?.post.timestamp)}
+				</p>
+			)}
 
-			{records.length > 0 && (
+			{records.length > 1 && (
 				<div className="space-y-2.5 pt-3">
 					<button
 						onClick={() => setIsRecordExpanded((value) => !value)}
