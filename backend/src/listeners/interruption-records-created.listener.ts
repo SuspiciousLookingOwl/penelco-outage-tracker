@@ -21,6 +21,9 @@ export class InterruptionRecordsCreatedListener implements IEventHandler<Interru
 
 			const keywords = [...new Set(records.flatMap((record) => this.getKeywords(record)))];
 			const subscriptions = await this.subscriptionRepository.findByKeywords(keywords);
+
+			this.logger.log(`Broadcasting to ${subscriptions.length} subscriptions`);
+
 			if (!subscriptions.length) return;
 
 			const { sent, invalid } = await this.pushService.sendToFids(
@@ -49,6 +52,7 @@ export class InterruptionRecordsCreatedListener implements IEventHandler<Interru
 
 	private getKeywords(record: InterruptionRecord): string[] {
 		return [...record.area.split(","), ...(record.subareas?.split(",") ?? [])]
+			.flatMap((value) => value.split(" "))
 			.map((value) => value.trim())
 			.filter(Boolean);
 	}

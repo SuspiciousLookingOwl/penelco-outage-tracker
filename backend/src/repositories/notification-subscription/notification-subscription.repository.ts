@@ -49,7 +49,8 @@ export class NotificationSubscriptionRepository {
 					SELECT 1
 					FROM jsonb_array_elements_text(notification_subscriptions.keywords) AS stored(keyword)
 					JOIN jsonb_array_elements_text(?::jsonb) AS input(keyword)
-						ON lower(unaccent(stored.keyword)) = lower(unaccent(input.keyword))
+						ON length(trim(stored.keyword)) > 0
+						AND strpos(lower(unaccent(input.keyword)), lower(unaccent(trim(stored.keyword)))) > 0
 				)`,
 				[JSON.stringify(candidates)]
 			);
