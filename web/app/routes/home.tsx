@@ -91,11 +91,11 @@ export default function Home() {
 			<header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
 				<div className="mx-auto max-w-3xl space-y-3 py-4 px-2 sm:px-4">
 					<div className="flex items-center gap-3">
-						<img src={penelcoLogo} alt="PENELCO logo" className="w-16 md:w-24 aspect-square" />
+						<img src="./power-outage.png" alt="PENELCO logo" className="w-16 md:w-24 p-2.5 aspect-square" />
 						<div className="flex flex-col sm:flex-row sm:items-center grow">
 							<div className="flex flex-row md:flex-col items-center sm:items-start space-x-2 grow">
-								<h1 className="text-lg sm:text-xl font-semibold">PENELCO </h1>
-								<h3 className="text-base sm:text-lg font-semibold">Outage Tracker</h3>
+								<h1 className="text-lg sm:text-2xl font-semibold">PENELCO </h1>
+								<h3 className="text-base sm:text-xl font-semibold my-auto">Outage Tracker</h3>
 							</div>
 							<span className="text-sm text-slate-400">
 								{search ? `${total} of ${query.data?.length ?? 0}` : total} listed
