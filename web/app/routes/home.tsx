@@ -2,9 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { type Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { MdChevronRight, MdExpandMore, MdNotificationsActive, MdNotificationsOff } from "react-icons/md";
+import { MdChevronRight, MdExpandMore } from "react-icons/md";
 import { getInterruptions, type Interruption } from "~/api";
-import { Button } from "~/components/button";
 import { Card } from "~/components/card";
 import { Input } from "~/components/input";
 import { InterruptionCard } from "~/components/interruption-card";
@@ -115,7 +114,8 @@ export default function Home() {
 							onChange={(event) => setSearch(event.target.value)}
 							placeholder="Search places..."
 						/>
-						<Button
+						{/* TODO re-enable this */}
+						{/* <Button
 							type="button"
 							onClick={() => setIsNotificationModalOpen(true)}
 							className={`w-full sm:max-w-max ${fid ? "border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25" : "bg-slate-900"}`}
@@ -126,7 +126,7 @@ export default function Home() {
 								<MdNotificationsOff className="size-4" />
 							)}
 							<span>{fid ? "Notification" : "Notify me"}</span>
-						</Button>
+						</Button> */}
 					</div>
 				</div>
 			</header>
