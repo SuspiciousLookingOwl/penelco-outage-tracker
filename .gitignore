@@ -2,3 +2,4 @@ images
 db_data
 web_dist
 .env
+firebase-adminsdk.json

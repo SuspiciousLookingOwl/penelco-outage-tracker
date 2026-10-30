@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+coverage
+.temp
+.tmp
+images
+*.log
+.env
+.env.*
+!*.env.example
+# Never bake Firebase service account credentials into the image.
+*firebase-adminsdk*.json
+secrets

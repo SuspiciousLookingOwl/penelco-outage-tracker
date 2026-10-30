@@ -4,6 +4,9 @@ services:
     build: ./backend
     volumes:
       - ./images:/usr/src/app/images
+      - ./firebase-adminsdk.json:/usr/src/app/secrets/firebase-adminsdk.json:ro
+    environment:
+      FIREBASE_SERVICE_ACCOUNT_PATH: /usr/src/app/secrets/firebase-adminsdk.json
     env_file:
       - .env
   penelco-postgres:
