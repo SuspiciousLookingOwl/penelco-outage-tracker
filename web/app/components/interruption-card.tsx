@@ -175,6 +175,7 @@ function InterruptionRecord({ record, onPreview }: InterruptionRecordProps) {
 						<span className="text-xs text-slate-500">
 							{formatDateTime(record.recognition.post.timestamp)}
 						</span>
+						<span className="text-[0.5rem] text-slate-700">({record.recognition.post.id})</span>
 					</div>
 					<div className="flex flex-row items-center space-x-2">
 						<span className="tabular-nums text-slate-300">{formatDate(record.date)}</span>
