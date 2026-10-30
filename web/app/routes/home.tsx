@@ -103,7 +103,7 @@ export default function Home() {
 
 	return (
 		<div className="min-h-screen text-slate-100 pb-32">
-			<header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
+			<header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/95 pt-[env(safe-area-inset-top)] backdrop-blur">
 				<div className="mx-auto max-w-3xl space-y-3 py-4 px-2 sm:px-4">
 					{postId ? (
 						<Button
@@ -218,7 +218,7 @@ export default function Home() {
 					<button
 						title="Close"
 						onClick={() => setPreview(null)}
-						className="absolute top-4 right-4 rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-300 hover:bg-slate-800"
+						className="absolute top-[max(1rem,env(safe-area-inset-top,0px))] right-4 rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-300 hover:bg-slate-800"
 					>
 						Close
 					</button>

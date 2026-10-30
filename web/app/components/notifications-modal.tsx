@@ -248,7 +248,7 @@ export const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
 		<div
 			role="dialog"
 			onClick={onClose}
-			className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/90 p-4 backdrop-blur-sm sm:items-center"
+			className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/90 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:items-center"
 		>
 			<div
 				onClick={(event) => event.stopPropagation()}
