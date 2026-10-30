@@ -1,6 +1,9 @@
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
+import "@khmyznikov/pwa-install";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { NotificationProvider } from "~/contexts/notification.context";
+import { PwaProvider } from "~/contexts/pwa.context";
 
 const queryClient = new QueryClient();
 
@@ -8,6 +11,9 @@ import type { Route } from "./+types/root";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
+	{ rel: "manifest", href: "/manifest.json" },
+	{ rel: "icon", href: "/favicon.ico" },
+	{ rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png", sizes: "180x180" },
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
 	{
 		rel: "preconnect",
@@ -25,11 +31,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 		<html lang="en">
 			<head>
 				<meta charSet="utf-8" />
-				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<meta name="mobile-web-app-capable" content="yes" />
+				<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+				<meta name="apple-mobile-web-app-title" content="PENELCO Outage Tracker" />
+				<meta name="theme-color" content="#020618" />
 				<Meta />
 				<Links />
 			</head>
 			<body>
+				<pwa-install />
 				{children}
 				<ScrollRestoration />
 				<Scripts />
@@ -41,7 +53,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
 	return (
 		<QueryClientProvider client={queryClient}>
-			<Outlet />
+			<PwaProvider>
+				<NotificationProvider>
+					<Outlet />
+				</NotificationProvider>
+			</PwaProvider>
 		</QueryClientProvider>
 	);
 }

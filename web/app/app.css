@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
+html {
+	@apply bg-slate-950 scheme-dark;
+}
+
 body {
+	@apply bg-slate-950;
 	font-family: "Roboto", sans-serif;
 	font-optical-sizing: auto;
 	font-style: normal;

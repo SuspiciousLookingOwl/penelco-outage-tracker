@@ -1,16 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { type Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
-import { MdChevronRight, MdExpandMore } from "react-icons/md";
+import { createPortal } from "react-dom";
+import { MdChevronRight, MdExpandMore, MdNotificationsActive, MdNotificationsOff } from "react-icons/md";
 import { getInterruptions, type Interruption } from "~/api";
+import { Button } from "~/components/button";
 import { Card } from "~/components/card";
 import { Input } from "~/components/input";
 import { InterruptionCard } from "~/components/interruption-card";
 import { InterruptionStatus, InterruptionStatusType } from "~/components/interruption-status";
+import { NotificationsModal } from "~/components/notifications-modal";
+import { useNotification } from "~/contexts/notification.context";
 import { getInterruptionBounds, nowPht } from "~/utils/date";
 import { normalize } from "~/utils/string";
 import type { Route } from "./+types/home";
-import penelcoLogo from "./penelco.png";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "PENELCO Outage Tracker" }, { name: "description", content: "Welcome to React Router!" }];
@@ -21,11 +24,14 @@ type GroupedItem = { item: Interruption; start: Dayjs; end: Dayjs };
 export default function Home() {
 	const [search, setSearch] = useState("");
 	const [preview, setPreview] = useState<string | null>(null);
+	const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 	const [collapsed, setCollapsed] = useState<Record<InterruptionStatusType, boolean>>({
 		[InterruptionStatusType.Past]: true,
 		[InterruptionStatusType.Ongoing]: false,
 		[InterruptionStatusType.Upcoming]: false,
 	});
+
+	const { fid } = useNotification();
 
 	useEffect(() => {
 		if (!preview) return;
@@ -87,7 +93,7 @@ export default function Home() {
 	const total = groups.reduce((count, group) => count + group.items.length, 0);
 
 	return (
-		<div className="min-h-screen bg-slate-950 text-slate-100 pb-32">
+		<div className="min-h-screen text-slate-100 pb-32">
 			<header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
 				<div className="mx-auto max-w-3xl space-y-3 py-4 px-2 sm:px-4">
 					<div className="flex items-center gap-3">
@@ -102,12 +108,26 @@ export default function Home() {
 							</span>
 						</div>
 					</div>
-					<Input
-						type="search"
-						value={search}
-						onChange={(event) => setSearch(event.target.value)}
-						placeholder="Search places..."
-					/>
+					<div className="flex flex-col-reverse sm:flex-row items-center gap-2">
+						<Input
+							type="search"
+							value={search}
+							onChange={(event) => setSearch(event.target.value)}
+							placeholder="Search places..."
+						/>
+						<Button
+							type="button"
+							onClick={() => setIsNotificationModalOpen(true)}
+							className={`w-full sm:max-w-max ${fid ? "border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25" : "bg-slate-900"}`}
+						>
+							{fid ? (
+								<MdNotificationsActive className="size-4" />
+							) : (
+								<MdNotificationsOff className="size-4" />
+							)}
+							<span>{fid ? "Notification" : "Notify me"}</span>
+						</Button>
+					</div>
 				</div>
 			</header>
 
@@ -163,9 +183,6 @@ export default function Home() {
 
 			{preview && (
 				<div
-					role="dialog"
-					aria-modal="true"
-					aria-label="Interruption notice"
 					onClick={() => setPreview(null)}
 					className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-sm"
 				>
@@ -184,6 +201,9 @@ export default function Home() {
 					/>
 				</div>
 			)}
+
+			{isNotificationModalOpen &&
+				createPortal(<NotificationsModal onClose={() => setIsNotificationModalOpen(false)} />, document.body)}
 		</div>
 	);
 }
