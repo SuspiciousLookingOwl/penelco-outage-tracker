@@ -268,6 +268,7 @@ export class RecognitionService implements OnModuleInit {
 		}
 
 		this.postRecognitionsInProgress.add(post.id);
+		this.logger.log(`Starting recognition for post ${post.id}`);
 
 		try {
 			const recognitionIds = await this.recognitionRepository.deleteByPostId(post.id);
@@ -306,6 +307,7 @@ export class RecognitionService implements OnModuleInit {
 			recognitions.map(async (recognition): Promise<InterruptionRecord | null> => {
 				if (recognition.success) return null;
 
+				this.logger.log(`Recognizing image ${recognition.filename}`);
 				let result: RecognizedNotice | null = null;
 
 				try {
@@ -346,6 +348,8 @@ export class RecognitionService implements OnModuleInit {
 				let match: Interruption | null = null;
 
 				if (result.type !== InterruptionRecordType.PUBLISHED) {
+					this.logger.log(`Attempting to match interruption for ${recognition.filename}`);
+
 					const candidates = await this.interruptionRepository.get({
 						dateFrom: subDays(date, 14),
 						dateTo: addDays(date, 14),
@@ -389,6 +393,10 @@ export class RecognitionService implements OnModuleInit {
 							const matched = await this.openAiService.prompt(prompt, {
 								responseFormat: RecognitionService.MATCH_SCHEMA,
 							});
+
+							this.logger.log(
+								`Matched interruption: ${JSON.stringify(matched)} for ${recognition.filename}`
+							);
 
 							if (matched.id) {
 								match = candidates.find((candidate) => candidate.id === matched.id) ?? null;
