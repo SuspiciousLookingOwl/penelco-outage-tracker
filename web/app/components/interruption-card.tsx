@@ -14,6 +14,12 @@ const typeStyles: Record<RecordType, string> = {
 	[RecordType.Cancelled]: "bg-rose-500/15 text-rose-300",
 };
 
+const RecordTypePriority: Record<RecordType, number> = {
+	[RecordType.Updated]: 2,
+	[RecordType.Published]: 1,
+	[RecordType.Cancelled]: 0,
+};
+
 const REGEXP_SPECIALS = /[.*+?^${}()|[\]\\]/g;
 
 const highlight = (text: string, term: string) => {
@@ -49,17 +55,21 @@ interface InterruptionCardProps {
 
 export function InterruptionCard({ interruption, type, highlightedText = "", onPreview }: InterruptionCardProps) {
 	const [isRecordExpanded, setIsRecordExpanded] = useState(false);
-	const records = [...interruption.records].sort((a, b) => dayjs(b.createdAt).diff(a.createdAt));
-	const lastRecord = records.at(-1);
+	const records = [...interruption.records].sort(
+		(a, b) =>
+			dayjs(b.recognition?.post?.timestamp).valueOf() - dayjs(a.recognition?.post?.timestamp).valueOf() ||
+			RecordTypePriority[b.type] - RecordTypePriority[a.type]
+	);
+	const latestRecord = records.at(0);
 
 	return (
 		<Card className="space-y-3 p-4">
 			<div className="flex space-x-2.5">
-				{lastRecord && (
+				{latestRecord && (
 					<img
-						src={getImageUrl(lastRecord.recognition?.filename ?? "")}
+						src={getImageUrl(latestRecord.recognition?.filename ?? "")}
 						alt="Interruption notice"
-						onClick={() => onPreview(getImageUrl(lastRecord.recognition?.filename ?? ""))}
+						onClick={() => onPreview(getImageUrl(latestRecord.recognition?.filename ?? ""))}
 						className="aspect-square h-20 cursor-pointer rounded border border-slate-800 object-cover transition-opacity hover:opacity-80"
 					/>
 				)}
@@ -107,12 +117,12 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 			</div>
 
 			{interruption.reason && <p className="text-sm text-slate-400">{interruption.reason}</p>}
-			{lastRecord && (
+			{latestRecord && (
 				<div className="flex flex-row items-center space-x-1.5">
 					<p className="text-xs text-slate-500">
-						Posted at: {formatDateTime(lastRecord.recognition?.post.timestamp)}
+						Posted at: {formatDateTime(latestRecord.recognition?.post.timestamp)}
 					</p>
-					<span className="text-[0.5rem] text-slate-700">({lastRecord.recognition.post.id})</span>
+					<span className="text-[0.5rem] text-slate-700">({latestRecord.recognition.post.id})</span>
 				</div>
 			)}
 
