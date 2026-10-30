@@ -1,7 +1,8 @@
-import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, useNavigate } from "react-router";
 
 import "@khmyznikov/pwa-install";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { NotificationProvider } from "~/contexts/notification.context";
 import { PwaProvider } from "~/contexts/pwa.context";
 
@@ -51,6 +52,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+	const navigate = useNavigate();
+
+	useEffect(() => {
+		if (!("serviceWorker" in navigator)) return;
+
+		const onMessage = (event: MessageEvent) => {
+			const message = event.data;
+			if (message?.messageType !== "notification-clicked") return;
+
+			const url = message.data?.url;
+			if (url) navigate(url);
+		};
+
+		navigator.serviceWorker.addEventListener("message", onMessage);
+		return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+	}, [navigate]);
+
 	return (
 		<QueryClientProvider client={queryClient}>
 			<PwaProvider>
