@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
@@ -6,7 +6,7 @@ import { ImageUtil } from "../utils";
 
 export interface OpenAiServiceOptions {
 	baseUrl: string;
-	model: string;
+	models: string[];
 	apiKey: string;
 	timeoutMs?: number;
 	maxRetries?: number;
@@ -26,6 +26,7 @@ const RESPONSE_FORMAT_NAME = "response";
 
 @Injectable()
 export class OpenAiService {
+	private readonly logger = new Logger(OpenAiService.name);
 	private readonly client: OpenAI;
 	private readonly options: OpenAiServiceOptions;
 
@@ -49,10 +50,29 @@ export class OpenAiService {
 		const text = typeof prompt === "string" ? prompt.trim() : "";
 		if (!text) throw new Error("Prompt cannot be empty.");
 
+		let lastError: unknown;
+
+		for (const model of this.options.models) {
+			try {
+				return await this.complete(model, text, options);
+			} catch (error) {
+				lastError = error;
+				this.logger.warn(`Model ${model} failed, trying the next one: ${error}`);
+			}
+		}
+
+		throw lastError;
+	}
+
+	private async complete<T extends z.ZodType>(
+		model: string,
+		text: string,
+		options: PromptOptions<T>
+	): Promise<string | z.infer<T>> {
 		const schema = options.responseFormat;
 
 		const completion = await this.client.chat.completions.create({
-			model: this.options.model,
+			model,
 			temperature: 0,
 			messages: [
 				{
@@ -74,7 +94,7 @@ export class OpenAiService {
 		if (parsed.success) return parsed.data;
 
 		const retry = await this.client.chat.completions.create({
-			model: this.options.model,
+			model,
 			temperature: 0,
 			messages: [
 				{

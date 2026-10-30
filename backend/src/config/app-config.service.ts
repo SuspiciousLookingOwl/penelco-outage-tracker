@@ -29,7 +29,7 @@ export class AppConfigService {
 		return {
 			baseUrl: this.config.get("OPENAI_BASE_URL", { infer: true }),
 			apiKey: this.config.get("OPENAI_API_KEY", { infer: true }),
-			model: this.config.get("OPENAI_MODEL", { infer: true }),
+			models: this.config.get("OPENAI_MODEL", { infer: true }),
 			imageDetail: this.config.get("OPENAI_IMAGE_DETAIL", { infer: true }),
 			timeoutMs: this.config.get("OPENAI_TIMEOUT_MS", { infer: true }),
 		};

@@ -5,7 +5,16 @@ export const envSchema = z.object({
 
 	OPENAI_BASE_URL: z.url(),
 	OPENAI_API_KEY: z.string().min(1),
-	OPENAI_MODEL: z.string().min(1),
+	OPENAI_MODEL: z
+		.string()
+		.min(1)
+		.transform((value) =>
+			value
+				.split(",")
+				.map((model) => model.trim())
+				.filter(Boolean)
+		)
+		.refine((models) => models.length > 0, "At least one model is required"),
 	OPENAI_IMAGE_DETAIL: z.enum(["low", "high", "auto"]).default("high"),
 	OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
 
