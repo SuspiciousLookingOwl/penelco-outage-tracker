@@ -108,9 +108,12 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 
 			{interruption.reason && <p className="text-sm text-slate-400">{interruption.reason}</p>}
 			{lastRecord && (
-				<p className="text-xs text-slate-500">
-					Posted at: {formatDateTime(lastRecord.recognition?.post.timestamp)}
-				</p>
+				<div className="flex flex-row items-center space-x-1.5">
+					<p className="text-xs text-slate-500">
+						Posted at: {formatDateTime(lastRecord.recognition?.post.timestamp)}
+					</p>
+					<span className="text-[0.5rem] text-slate-700">({lastRecord.recognition.post.id})</span>
+				</div>
 			)}
 
 			{records.length > 1 && (
