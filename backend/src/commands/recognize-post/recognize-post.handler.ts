@@ -7,7 +7,7 @@ import {
 	InterruptionRecordRepository,
 	InterruptionRepository,
 } from "../../repositories";
-import { CronService } from "../../services/cron.service";
+import { RecognitionService } from "../../services/recognition.service";
 import { RecognizePostCommand, RecognizePostParamSchema, RecognizePostResult } from "./recognize-post.command";
 
 @CommandHandler(RecognizePostCommand)
@@ -17,7 +17,7 @@ export class RecognizePostHandler implements ICommandHandler<RecognizePostComman
 		private readonly recordRepository: InterruptionRecordRepository,
 		private readonly postRepository: InterruptionPostRepository,
 		private readonly recognitionRepository: InterruptionRecognitionRepository,
-		private readonly cronService: CronService
+		private readonly recognitionService: RecognitionService
 	) {}
 
 	@ValidateParams(RecognizePostParamSchema)
@@ -34,7 +34,7 @@ export class RecognizePostHandler implements ICommandHandler<RecognizePostComman
 		const orphanIds = await this.interruptionRepository.findOrphanIdsByPostId(postId);
 		await this.interruptionRepository.deleteByIds(orphanIds);
 
-		void this.cronService.recognizePost(post);
+		void this.recognitionService.recognizePost(post);
 
 		return {
 			postId,

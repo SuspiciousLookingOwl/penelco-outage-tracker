@@ -24,11 +24,11 @@ import { DATE_FORMAT, DateUtil } from "../utils/date.util";
 import { OpenAiService } from "./openai.service";
 import { PenelcoService, type InterruptionResponse } from "./penelco.service";
 
-export type RecognizedNotice = z.infer<typeof CronService.INTERRUPTION_SCHEMA>;
+export type RecognizedNotice = z.infer<typeof RecognitionService.INTERRUPTION_SCHEMA>;
 
 @Injectable()
-export class CronService implements OnModuleInit {
-	private readonly logger = new Logger(CronService.name);
+export class RecognitionService implements OnModuleInit {
+	private readonly logger = new Logger(RecognitionService.name);
 	private static FETCH_PAGE_SIZE = 10;
 	private static FETCH_MAX_PAGES = 10;
 	private static IMAGE_MAX_SIZE = 1024;
@@ -69,8 +69,8 @@ export class CronService implements OnModuleInit {
 		date: z.string().nullable(),
 		formerDate: z.string().nullable(),
 		dayOfWeek: z.string().nullable(),
-		timeSlots: z.array(CronService.TIME_SLOT_SCHEMA),
-		formerTimeSlots: z.array(CronService.TIME_SLOT_SCHEMA),
+		timeSlots: z.array(RecognitionService.TIME_SLOT_SCHEMA),
+		formerTimeSlots: z.array(RecognitionService.TIME_SLOT_SCHEMA),
 		area: z.array(z.string()),
 		subareas: z.array(z.string()),
 		reason: z.string().nullable(),
@@ -154,10 +154,12 @@ export class CronService implements OnModuleInit {
 
 			const rawPosts: InterruptionResponse[] = [];
 
-			for (let page = 0; page < CronService.FETCH_MAX_PAGES; page++) {
-				const start = page * CronService.FETCH_PAGE_SIZE;
-				this.logger.log(`Fetching posts ${start}-${start + CronService.FETCH_PAGE_SIZE} (page: ${page})`);
-				const batch = await this.penelcoService.getInterruptions(start, CronService.FETCH_PAGE_SIZE);
+			for (let page = 0; page < RecognitionService.FETCH_MAX_PAGES; page++) {
+				const start = page * RecognitionService.FETCH_PAGE_SIZE;
+				this.logger.log(
+					`Fetching posts ${start}-${start + RecognitionService.FETCH_PAGE_SIZE} (page: ${page})`
+				);
+				const batch = await this.penelcoService.getInterruptions(start, RecognitionService.FETCH_PAGE_SIZE);
 
 				if (!batch.length) break;
 
@@ -185,8 +187,10 @@ export class CronService implements OnModuleInit {
 				if (stop) break;
 			}
 
-			if (rawPosts.length >= CronService.FETCH_MAX_PAGES * CronService.FETCH_PAGE_SIZE) {
-				this.logger.warn(`Stopped after ${CronService.FETCH_MAX_PAGES} pages without finding a stored post.`);
+			if (rawPosts.length >= RecognitionService.FETCH_MAX_PAGES * RecognitionService.FETCH_PAGE_SIZE) {
+				this.logger.warn(
+					`Stopped after ${RecognitionService.FETCH_MAX_PAGES} pages without finding a stored post.`
+				);
 			}
 
 			const directory = resolve(this.config.imagePath);
@@ -199,11 +203,11 @@ export class CronService implements OnModuleInit {
 					try {
 						const clean = base64.replace(/^data:[^;]+;base64,/, "");
 						const buffer = await sharp(Buffer.from(clean, "base64"))
-							.resize(CronService.IMAGE_MAX_SIZE, CronService.IMAGE_MAX_SIZE, {
+							.resize(RecognitionService.IMAGE_MAX_SIZE, RecognitionService.IMAGE_MAX_SIZE, {
 								fit: "inside",
 								withoutEnlargement: true,
 							})
-							.webp({ quality: CronService.IMAGE_WEBP_QUALITY })
+							.webp({ quality: RecognitionService.IMAGE_WEBP_QUALITY })
 							.toBuffer();
 
 						const filename = `${rawPost.id}_${index}_${RandomUtil.randomString(8)}.webp`;
@@ -305,8 +309,8 @@ export class CronService implements OnModuleInit {
 				let result: RecognizedNotice | null = null;
 
 				try {
-					let prompt = CronService.RECOGNIZE_PROMPT;
-					if (post.content) prompt += `\n${CronService.EXTRA_CONTENT_PROMPT} ${post.content}`;
+					let prompt = RecognitionService.RECOGNIZE_PROMPT;
+					if (post.content) prompt += `\n${RecognitionService.EXTRA_CONTENT_PROMPT} ${post.content}`;
 
 					const images: string[] = [];
 					if (recognition.filename) {
@@ -316,7 +320,7 @@ export class CronService implements OnModuleInit {
 
 					result = await this.openAiService.prompt(prompt, {
 						images,
-						responseFormat: CronService.INTERRUPTION_SCHEMA,
+						responseFormat: RecognitionService.INTERRUPTION_SCHEMA,
 					});
 					this.logger.log(`Recognized image ${recognition.filename}`);
 				} catch (error) {
@@ -348,7 +352,7 @@ export class CronService implements OnModuleInit {
 					});
 
 					if (candidates.length) {
-						const prompt = `${CronService.MATCH_PROMPT}
+						const prompt = `${RecognitionService.MATCH_PROMPT}
 							Notice:
 							${JSON.stringify(
 								{
@@ -383,7 +387,7 @@ export class CronService implements OnModuleInit {
 
 						try {
 							const matched = await this.openAiService.prompt(prompt, {
-								responseFormat: CronService.MATCH_SCHEMA,
+								responseFormat: RecognitionService.MATCH_SCHEMA,
 							});
 
 							if (matched.id) {

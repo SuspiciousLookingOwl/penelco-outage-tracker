@@ -16,10 +16,10 @@ import { InterruptionRecognitionRepository } from "./repositories/interruption-r
 import { InterruptionRecordRepository } from "./repositories/interruption-record/interruption-record.repository";
 import { InterruptionRepository } from "./repositories/interruption/interruption.repository";
 import { NotificationSubscriptionRepository } from "./repositories/notification-subscription/notification-subscription.repository";
-import { CronService } from "./services/cron.service";
 import { OPENAI_OPTIONS, OpenAiService, OpenAiServiceOptions } from "./services/openai.service";
 import { PenelcoService } from "./services/penelco.service";
 import { PushService } from "./services/push.service";
+import { RecognitionService } from "./services/recognition.service";
 
 @Module({
 	imports: [
@@ -44,7 +44,7 @@ import { PushService } from "./services/push.service";
 		InterruptionRecognitionRepository,
 		NotificationSubscriptionRepository,
 		PushService,
-		CronService,
+		RecognitionService,
 		...CommandHandlers,
 		...QueryHandlers,
 		...Listeners,
