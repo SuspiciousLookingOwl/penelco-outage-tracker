@@ -14,5 +14,5 @@ export class GetInterruptionRecordsQuery extends Query<GetInterruptionRecordsRes
 }
 
 export const GetInterruptionRecordsParamSchema = z.object({
-	days: z.coerce.number().int().positive().max(365).default(14),
+	days: z.coerce.number().int().positive().max(30).default(14),
 });

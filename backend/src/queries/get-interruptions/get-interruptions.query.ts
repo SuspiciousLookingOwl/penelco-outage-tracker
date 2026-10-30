@@ -14,5 +14,5 @@ export class GetInterruptionsQuery extends Query<GetInterruptionsResult> {
 }
 
 export const GetInterruptionsParamSchema = z.object({
-	days: z.coerce.number().int().positive().max(365).default(14),
+	days: z.coerce.number().int().positive().max(30).default(14),
 });

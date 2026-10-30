@@ -13,7 +13,7 @@ export class GetInterruptionsHandler implements IQueryHandler<GetInterruptionsQu
 		const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
 		return this.interruptionRepository.get(
-			{ from, orderBy: "date", orderDirection: "desc" },
+			{ dateFrom: from, orderBy: "date", orderDirection: "desc" },
 			{ records: { recognition: { post: true } } }
 		);
 	}
