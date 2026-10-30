@@ -41,7 +41,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<Links />
 			</head>
 			<body>
-				<pwa-install />
+				<pwa-install manual-apple="true" manual-chrome="true" />
 				{children}
 				<ScrollRestoration />
 				<Scripts />
