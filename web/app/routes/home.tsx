@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { type Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { MdChevronRight, MdExpandMore } from "react-icons/md";
+import { MdArrowBack, MdChevronRight, MdExpandMore, MdNotificationsActive, MdNotificationsOff } from "react-icons/md";
+import { useSearchParams } from "react-router";
 import { getInterruptions, type Interruption } from "~/api";
+import { Button } from "~/components/button";
 import { Card } from "~/components/card";
 import { Input } from "~/components/input";
 import { InterruptionCard } from "~/components/interruption-card";
@@ -21,7 +23,7 @@ export function meta({}: Route.MetaArgs) {
 type GroupedItem = { item: Interruption; start: Dayjs; end: Dayjs };
 
 export default function Home() {
-	const [search, setSearch] = useState("");
+	const [searchParams, setSearchParams] = useSearchParams({ search: "", postId: "" });
 	const [preview, setPreview] = useState<string | null>(null);
 	const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 	const [collapsed, setCollapsed] = useState<Record<InterruptionStatusType, boolean>>({
@@ -29,6 +31,8 @@ export default function Home() {
 		[InterruptionStatusType.Ongoing]: false,
 		[InterruptionStatusType.Upcoming]: false,
 	});
+	const search = searchParams.get("search") ?? "";
+	const postId = searchParams.get("postId") ?? "";
 
 	const { fid } = useNotification();
 
@@ -60,6 +64,12 @@ export default function Home() {
 			!now.isBefore(start.subtract(15, "minute")) && !now.isAfter(end.add(15, "minute"));
 
 		for (const item of query.data ?? []) {
+			const lastRecord = item.records.sort(
+				(a, b) =>
+					new Date(b.recognition.post.timestamp).getTime() - new Date(a.recognition.post.timestamp).getTime()
+			)[0];
+			if (postId && lastRecord.recognition.post.id !== postId) continue;
+
 			if (term && !normalize(item.area).includes(term) && !normalize(item.subareas).includes(term)) {
 				continue;
 			}
@@ -87,7 +97,7 @@ export default function Home() {
 			{ key: InterruptionStatusType.Upcoming, items: upcoming },
 			{ key: InterruptionStatusType.Past, items: past },
 		];
-	}, [query.data, search]);
+	}, [query.data, searchParams]);
 
 	const total = groups.reduce((count, group) => count + group.items.length, 0);
 
@@ -95,39 +105,58 @@ export default function Home() {
 		<div className="min-h-screen text-slate-100 pb-32">
 			<header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
 				<div className="mx-auto max-w-3xl space-y-3 py-4 px-2 sm:px-4">
-					<div className="flex items-center gap-3">
-						<img src="./power-outage.png" alt="PENELCO logo" className="w-16 md:w-24 p-2.5 aspect-square" />
-						<div className="flex flex-col sm:flex-row sm:items-center grow">
-							<div className="flex flex-row md:flex-col items-center sm:items-start space-x-2 grow">
-								<h1 className="text-lg sm:text-2xl font-semibold">PENELCO </h1>
-								<h3 className="text-base sm:text-xl font-semibold my-auto">Outage Tracker</h3>
-							</div>
-							<span className="text-sm text-slate-400">
-								{search ? `${total} of ${query.data?.length ?? 0}` : total} listed
-							</span>
-						</div>
-					</div>
-					<div className="flex flex-col-reverse sm:flex-row items-center gap-2">
-						<Input
-							type="search"
-							value={search}
-							onChange={(event) => setSearch(event.target.value)}
-							placeholder="Search places..."
-						/>
-						{/* TODO re-enable this */}
-						{/* <Button
-							type="button"
-							onClick={() => setIsNotificationModalOpen(true)}
-							className={`w-full sm:max-w-max ${fid ? "border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25" : "bg-slate-900"}`}
+					{postId ? (
+						<Button
+							onClick={() =>
+								setSearchParams((v) => {
+									v.delete("postId");
+									return v;
+								})
+							}
 						>
-							{fid ? (
-								<MdNotificationsActive className="size-4" />
-							) : (
-								<MdNotificationsOff className="size-4" />
-							)}
-							<span>{fid ? "Notification" : "Notify me"}</span>
-						</Button> */}
-					</div>
+							<MdArrowBack className="size-4" />
+							<span>Back</span>
+						</Button>
+					) : (
+						<>
+							<div className="flex items-center gap-3">
+								<img
+									src="./power-outage.png"
+									alt="PENELCO logo"
+									className="w-16 md:w-24 p-2.5 aspect-square"
+								/>
+								<div className="flex flex-col sm:flex-row sm:items-center grow">
+									<div className="flex flex-row md:flex-col items-center sm:items-start space-x-2 grow">
+										<h1 className="text-lg sm:text-2xl font-semibold">PENELCO </h1>
+										<h3 className="text-base sm:text-xl font-semibold my-auto">Outage Tracker</h3>
+									</div>
+									<span className="text-sm text-slate-400">
+										{search ? `${total} of ${query.data?.length ?? 0}` : total} listed
+									</span>
+								</div>
+							</div>
+							<div className="flex flex-col-reverse sm:flex-row items-center gap-2">
+								<Input
+									type="search"
+									value={search}
+									onChange={(event) => setSearchParams((v) => ({ ...v, search: event.target.value }))}
+									placeholder="Search places..."
+								/>
+								<Button
+									type="button"
+									onClick={() => setIsNotificationModalOpen(true)}
+									className={`w-full sm:max-w-max ${fid ? "border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25" : "bg-slate-900"}`}
+								>
+									{fid ? (
+										<MdNotificationsActive className="size-4" />
+									) : (
+										<MdNotificationsOff className="size-4" />
+									)}
+									<span>{fid ? "Notification" : "Notify me"}</span>
+								</Button>
+							</div>
+						</>
+					)}
 				</div>
 			</header>
 

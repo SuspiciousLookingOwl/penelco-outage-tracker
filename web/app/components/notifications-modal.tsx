@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
 import { MdAdd, MdClose, MdNotificationsOff } from "react-icons/md";
-import { getSubscription, updateSubscription } from "~/api";
+import { createSubscription, getSubscription, updateSubscription } from "~/api";
 import { NotificationStatus, useNotification } from "~/contexts/notification.context";
 import { usePwa } from "~/contexts/pwa.context";
 import { Button } from "./button";
@@ -61,7 +61,8 @@ const NotificationsForm = ({
 			className="flex min-h-0 flex-1 flex-col space-y-3"
 		>
 			<p className="text-sm text-slate-400">
-				You&apos;ll be notified when an interruption matches any of these places.
+				You'll be notified when an interruption notice mentions any of the keywords you provide. Put your city /
+				municipality, barangay, subdivision, nearby establishments, etc.
 			</p>
 
 			<form.Field name="subscribeToAll">
@@ -171,7 +172,7 @@ const NotificationsForm = ({
 
 export const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
 	const { needsInstall, showInstallTutorial } = usePwa();
-	const { status, fid, subscribe, unsubscribe } = useNotification();
+	const { status, fid, subscribe } = useNotification();
 
 	const [loaded, setLoaded] = useState<LoadedSubscription | null>(null);
 	const [failed, setFailed] = useState(false);
@@ -213,8 +214,11 @@ export const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
 			return;
 		}
 
+		let active = true;
+
 		void (async () => {
 			const details = await getSubscription(fid).catch(() => null);
+			if (!active) return;
 
 			if (details) {
 				setLoaded({
@@ -225,11 +229,20 @@ export const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
 				return;
 			}
 
-			if (requested.current) return setFailed(true);
+			const recreated = await createSubscription(fid).then(
+				() => true,
+				() => false
+			);
+			if (!active) return;
 
-			await unsubscribe();
+			if (recreated) setLoaded({ token: fid, keywords: [], subscribeToAll: false });
+			else setFailed(true);
 		})();
-	}, [needsInstall, status, fid, loaded, subscribe, unsubscribe]);
+
+		return () => {
+			active = false;
+		};
+	}, [needsInstall, status, fid, loaded, subscribe]);
 
 	return (
 		<div

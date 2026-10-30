@@ -51,6 +51,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 	const [fid, setFid] = useState<string | null>(null);
 
 	const isSubscribedRef = useRef(false);
+	const registeredFidRef = useRef<string | null>(null);
 
 	useEffect(() => {
 		let stopListening: (() => void) | undefined;
@@ -65,7 +66,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 			if (!instance) return setStatus(NotificationStatus.Unsupported);
 
 			stopListening = onRegistered(instance, async (nextFid) => {
+				registeredFidRef.current = nextFid;
+
 				if (!isSubscribedRef.current) return;
+
+				if (localStorage.getItem(FID_KEY) === nextFid) {
+					setFid(nextFid);
+					return;
+				}
 
 				localStorage.setItem(FID_KEY, nextFid);
 				setFid(nextFid);
@@ -95,12 +103,19 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 			const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL);
 			await navigator.serviceWorker.ready;
 
-			isSubscribedRef.current = true;
-
 			await register(instance, {
 				vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY ?? "",
 				serviceWorkerRegistration: registration,
 			});
+
+			const nextFid = registeredFidRef.current;
+			if (!nextFid) throw new Error("onRegistered did not deliver an FID.");
+
+			await createSubscription(nextFid);
+
+			isSubscribedRef.current = true;
+			localStorage.setItem(FID_KEY, nextFid);
+			setFid(nextFid);
 		} catch {
 			isSubscribedRef.current = false;
 			setStatus(NotificationStatus.Failed);
