@@ -436,6 +436,6 @@ export class RecognitionService implements OnModuleInit {
 		const records = created.filter((record): record is InterruptionRecord => record !== null);
 		if (!records.length) return;
 
-		void this.eventBus.publish(new InterruptionRecordsCreatedEvent({ records }));
+		void this.eventBus.publish(new InterruptionRecordsCreatedEvent({ records, postId: post.id }));
 	}
 }

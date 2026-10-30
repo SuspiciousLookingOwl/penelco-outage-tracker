@@ -25,6 +25,8 @@ export const envSchema = z.object({
 	BASIC_AUTH_USERNAME: z.string().min(1),
 	BASIC_AUTH_PASSWORD: z.string().min(1),
 
+	WEB_BASE_URL: z.url().optional(),
+
 	FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional(),
 
 	POSTGRES_HOST: z.string().min(1).default("127.0.0.1"),

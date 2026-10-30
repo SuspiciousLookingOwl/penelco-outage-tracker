@@ -18,7 +18,6 @@ export class PushService implements OnModuleInit {
 		"messaging/installation-id-not-registered",
 		"messaging/registration-token-not-registered",
 		"messaging/invalid-registration-token",
-		"messaging/invalid-argument",
 	]);
 
 	private readonly logger = new Logger(PushService.name);
@@ -44,6 +43,8 @@ export class PushService implements OnModuleInit {
 			return;
 		}
 
+		if (!this.config.webBaseUrl) this.logger.warn("WEB_BASE_URL is not configured.");
+
 		const app: App = getApps()[0] ?? initializeApp({ credential });
 		this.messaging = getMessaging(app);
 	}
@@ -54,19 +55,20 @@ export class PushService implements OnModuleInit {
 		let sent = 0;
 		const invalid: string[] = [];
 
+		const url = message.url ?? "/";
+		const link = this.toAbsoluteUrl(url);
+
 		for (let i = 0; i < fids.length; i += PushService.MAX_FIDS_PER_REQUEST) {
 			const chunk = fids.slice(i, i + PushService.MAX_FIDS_PER_REQUEST);
 
 			const response = await this.messaging.sendEachForMulticast({
 				fids: chunk,
 				notification: { title: message.title, body: message.body },
-				data: message.data,
-				webpush: message.url
-					? {
-							fcmOptions: { link: message.url },
-							notification: { icon: "/icons/icon-192.png", badge: "/icons/icon-192.png" },
-						}
-					: undefined,
+				data: { ...message.data, url },
+				webpush: {
+					fcmOptions: link ? { link } : undefined,
+					notification: { icon: "/icons/icon-192.png", badge: "/icons/icon-192.png" },
+				},
 			});
 
 			sent += response.successCount;
@@ -75,15 +77,30 @@ export class PushService implements OnModuleInit {
 				if (result.success) return;
 
 				const code = result.error?.code ?? "";
+				const detail = `${code} ${result.error?.message ?? ""}`.trim();
+
 				if (PushService.INVALID_FID_CODES.has(code)) {
 					invalid.push(chunk[index]);
+					this.logger.warn(`Fid ${chunk[index]} is no longer registered: ${detail}`);
 					return;
 				}
 
-				this.logger.warn(`Push to fid ${index} failed: ${code} ${result.error?.message ?? ""}`);
+				this.logger.error(`Push to fid ${chunk[index]} failed: ${detail}`);
 			});
 		}
 
 		return { sent, invalid };
+	}
+
+	private toAbsoluteUrl(path: string): string | null {
+		const baseUrl = this.config.webBaseUrl;
+		if (!baseUrl) return null;
+
+		try {
+			return new URL(path, baseUrl).href;
+		} catch (error) {
+			this.logger.warn(`Failed to resolve ${path} against ${baseUrl}: ${error}`);
+			return null;
+		}
 	}
 }

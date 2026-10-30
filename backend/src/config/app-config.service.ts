@@ -40,4 +40,8 @@ export class AppConfigService {
 			serviceAccountPath: this.config.get("FIREBASE_SERVICE_ACCOUNT_PATH", { infer: true }) ?? null,
 		};
 	}
+
+	get webBaseUrl(): string | null {
+		return this.config.get("WEB_BASE_URL", { infer: true }) ?? null;
+	}
 }
