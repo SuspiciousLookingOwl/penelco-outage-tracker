@@ -40,7 +40,7 @@ export class CronService implements OnModuleInit {
 		- Transcribe only what is visible. Never invent dates, times or places.
 		- Times are printed in various format (e.g. "8:00 AM TO 5:00 PM/NN"). Convert them to 24 hour "HH:mm".
 		- Notice type can be a new scheduled interruption, cancellation, or update / moved. 
-		- If it's an update, there usually will be "from" (old) and "to" (new) time slots indicating the change.
+		- If it's an update, there usually will be "from" (old) and "to" (new) time slots indicating the change, or "Formerly" containing old date (and optionally time).
 		- If a notice is a cancellation, it usually has cancelled label / stamp
 		- If there's no red cancelled stamp or "from" / "to", it usually a new scheduled interruption.
 		- If a notice announces a moved schedule, put the current window in timeSlots and the old one in formerTimeSlots, keeping the printed label ("NEW TIME", "FORMERLY").
@@ -67,6 +67,7 @@ export class CronService implements OnModuleInit {
 	public static INTERRUPTION_SCHEMA = z.object({
 		type: z.enum(InterruptionRecordType),
 		date: z.string().nullable(),
+		formerDate: z.string().nullable(),
 		dayOfWeek: z.string().nullable(),
 		timeSlots: z.array(CronService.TIME_SLOT_SCHEMA),
 		formerTimeSlots: z.array(CronService.TIME_SLOT_SCHEMA),
@@ -342,8 +343,8 @@ export class CronService implements OnModuleInit {
 
 				if (result.type !== InterruptionRecordType.PUBLISHED) {
 					const candidates = await this.interruptionRepository.get({
-						dateFrom: subDays(date, 1),
-						dateTo: addDays(date, 1),
+						dateFrom: subDays(date, 14),
+						dateTo: addDays(date, 14),
 					});
 
 					if (candidates.length) {
@@ -353,6 +354,7 @@ export class CronService implements OnModuleInit {
 								{
 									type: result.type,
 									date: DateUtil.format(date, DATE_FORMAT),
+									formerDate: DateUtil.format(result.formerDate, DATE_FORMAT),
 									dayOfWeek: result.dayOfWeek,
 									timeSlots: result.timeSlots,
 									formerTimeSlots: result.formerTimeSlots,
