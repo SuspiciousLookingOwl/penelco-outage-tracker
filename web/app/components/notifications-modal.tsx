@@ -248,11 +248,11 @@ export const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
 		<div
 			role="dialog"
 			onClick={onClose}
-			className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/90 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:items-center"
+			className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/90 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:items-center"
 		>
 			<div
 				onClick={(event) => event.stopPropagation()}
-				className="flex max-h-[90vh] w-full max-w-md flex-col space-y-4 overflow-hidden rounded-lg border border-slate-800 bg-slate-900 p-4 shadow-xl"
+				className="flex max-h-[90vh] w-full max-w-md flex-col space-y-4 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 p-4 shadow-xl"
 			>
 				<div className="flex items-center justify-between gap-2">
 					<h2 className="font-medium text-slate-100">Notifications</h2>
