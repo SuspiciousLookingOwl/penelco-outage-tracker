@@ -37,6 +37,8 @@ const NotificationsForm = ({
 				),
 			];
 
+			if (keywords.length !== value.keywords.length) form.setFieldValue("keywords", keywords);
+
 			try {
 				await updateSubscription(token, keywords, value.subscribeToAll);
 				onClose();
@@ -91,7 +93,7 @@ const NotificationsForm = ({
 											name={`keywords[${index}]`}
 											validators={{
 												onChange: ({ value }) =>
-													value.trim().length >= MIN_KEYWORD_LENGTH
+													!value.trim() || value.trim().length >= MIN_KEYWORD_LENGTH
 														? undefined
 														: `At least ${MIN_KEYWORD_LENGTH} characters`,
 											}}
