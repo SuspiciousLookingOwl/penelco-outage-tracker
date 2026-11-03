@@ -409,6 +409,7 @@ export class RecognitionService implements OnModuleInit {
 					if (match) {
 						match.reason = result.reason;
 						if (result.timeSlots.length) match.timeSlots = details.timeSlots;
+						if (result.date) match.date = details.date;
 					}
 				}
 

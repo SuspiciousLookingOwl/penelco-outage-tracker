@@ -24,7 +24,7 @@ interface InterruptionProps {
 export class Interruption {
 	public readonly id: string;
 	public readonly interruptionPostId: string | null;
-	public readonly date: Date;
+	public date: Date;
 	public timeSlots: TimeSlot[];
 	public readonly area: string;
 	public readonly subareas: string | null;
