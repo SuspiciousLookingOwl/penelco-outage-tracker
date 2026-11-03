@@ -135,7 +135,7 @@ export default function Home() {
 									</span>
 								</div>
 							</div>
-							<div className="flex flex-col-reverse sm:flex-row items-center gap-2">
+							<div className="flex flex-col-reverse sm:flex-row items-center gap-2.5">
 								<Input
 									type="search"
 									value={search}
