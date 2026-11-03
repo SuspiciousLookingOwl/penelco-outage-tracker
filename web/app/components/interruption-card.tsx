@@ -90,12 +90,9 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 			</div>
 
 			<div className="flex flex-wrap items-center gap-1.5">
-				{/* TODO use `interruption` when fixed */}
-				{latestRecord && (
-					<>
-						<Chip className="font-medium text-slate-200">{formatDate(latestRecord.date)}</Chip>
+				<Chip className="font-medium text-slate-200">{formatDate(interruption.date)}</Chip>
 
-						{latestRecord.timeSlots.map((slot, index) => {
+				{interruption.timeSlots.map((slot, index) => {
 					const now = nowPht();
 					const start = dayjs(slot.start);
 					const end = dayjs(slot.end);
@@ -118,8 +115,6 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 						</Chip>
 					);
 				})}
-					</>
-				)}
 			</div>
 
 			{interruption.reason && <p className="text-sm text-slate-400">{interruption.reason}</p>}
