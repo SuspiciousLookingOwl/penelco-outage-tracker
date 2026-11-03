@@ -15,13 +15,24 @@ export enum CalendarProvider {
 	Outlook = "outlook",
 }
 
-export interface CalendarOption {
+interface CalendarOptionBase {
 	key: string;
-	provider: CalendarProvider;
 	label: string;
-	href: string;
-	download?: string;
 }
+
+export interface IcsCalendarOption extends CalendarOptionBase {
+	provider: CalendarProvider.Ics;
+	fileName: string;
+}
+
+export interface LinkCalendarOption extends CalendarOptionBase {
+	provider: LinkProvider;
+	href: string;
+}
+
+export type CalendarOption = IcsCalendarOption | LinkCalendarOption;
+
+type LinkProvider = CalendarProvider.Google | CalendarProvider.Outlook;
 
 interface CalendarEvent {
 	title: string;
@@ -118,7 +129,13 @@ const outlookUrl = (event: CalendarEvent) =>
 		location: event.location,
 	})}`;
 
-const providers = [
+interface ProviderLink {
+	provider: LinkProvider;
+	label: string;
+	build: (event: CalendarEvent) => string;
+}
+
+const providers: ProviderLink[] = [
 	{ provider: CalendarProvider.Google, label: "Google Calendar", build: googleUrl },
 	{ provider: CalendarProvider.Outlook, label: "Outlook Calendar", build: outlookUrl },
 ];
@@ -164,15 +181,12 @@ export class CalendarUtil {
 		const events = getEvents(interruption);
 		if (!events.length) return [];
 
-		const ics = `data:text/calendar;charset=utf-8,${encodeURIComponent(CalendarUtil.createIcs(interruption))}`;
-
 		return [
 			{
 				key: CalendarProvider.Ics,
 				provider: CalendarProvider.Ics,
 				label: "Calendar",
-				href: ics,
-				download: icsFileName(interruption),
+				fileName: icsFileName(interruption),
 			},
 			...providers.flatMap(({ provider, label, build }) =>
 				events.map((event, index) => ({
