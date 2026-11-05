@@ -8,6 +8,7 @@ dayjs.extend(utc);
 const PRODID = "-//PENELCO Outage Tracker//EN";
 const GOOGLE_URL = "https://calendar.google.com/calendar/render";
 const OUTLOOK_URL = "https://outlook.live.com/calendar/0/deeplink/compose";
+const IS_ANDROID = /Android/i.test(navigator.userAgent);
 
 export enum CalendarProvider {
 	Ics = "ics",
@@ -15,24 +16,13 @@ export enum CalendarProvider {
 	Outlook = "outlook",
 }
 
-interface CalendarOptionBase {
+interface CalendarOption {
 	key: string;
+	provider: CalendarProvider;
 	label: string;
-}
-
-export interface IcsCalendarOption extends CalendarOptionBase {
-	provider: CalendarProvider.Ics;
-	fileName: string;
-}
-
-export interface LinkCalendarOption extends CalendarOptionBase {
-	provider: LinkProvider;
 	href: string;
+	download?: string;
 }
-
-export type CalendarOption = IcsCalendarOption | LinkCalendarOption;
-
-type LinkProvider = CalendarProvider.Google | CalendarProvider.Outlook;
 
 interface CalendarEvent {
 	title: string;
@@ -129,13 +119,7 @@ const outlookUrl = (event: CalendarEvent) =>
 		location: event.location,
 	})}`;
 
-interface ProviderLink {
-	provider: LinkProvider;
-	label: string;
-	build: (event: CalendarEvent) => string;
-}
-
-const providers: ProviderLink[] = [
+const providers = [
 	{ provider: CalendarProvider.Google, label: "Google Calendar", build: googleUrl },
 	{ provider: CalendarProvider.Outlook, label: "Outlook Calendar", build: outlookUrl },
 ];
@@ -181,24 +165,28 @@ export class CalendarUtil {
 		const events = getEvents(interruption);
 		if (!events.length) return [];
 
-		return [
-			{
-				key: CalendarProvider.Ics,
-				provider: CalendarProvider.Ics,
-				label: "Calendar",
-				fileName: icsFileName(interruption),
-			},
-			...providers.flatMap(({ provider, label, build }) =>
-				events.map((event, index) => ({
-					key: `${provider}-${index}`,
-					provider,
-					label:
-						events.length > 1
-							? `${label} · ${formatTime(event.start) ?? "?"} – ${formatTime(event.end) ?? "?"}`
-							: label,
-					href: build(event),
-				}))
-			),
-		];
+		const ics = `data:text/calendar;charset=utf-8,${encodeURIComponent(CalendarUtil.createIcs(interruption))}`;
+
+		const calendar: CalendarOption = {
+			key: CalendarProvider.Ics,
+			provider: CalendarProvider.Ics,
+			label: "Calendar",
+			href: ics,
+			download: icsFileName(interruption),
+		};
+
+		const links = providers.flatMap(({ provider, label, build }) =>
+			events.map((event, index) => ({
+				key: `${provider}-${index}`,
+				provider,
+				label:
+					events.length > 1
+						? `${label} · ${formatTime(event.start) ?? "?"} – ${formatTime(event.end) ?? "?"}`
+						: label,
+				href: build(event),
+			}))
+		);
+
+		return IS_ANDROID ? [...links, calendar] : [calendar, ...links];
 	}
 }
