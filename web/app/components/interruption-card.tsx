@@ -24,6 +24,7 @@ const RecordTypePriority: Record<RecordType, number> = {
 };
 
 const REGEXP_SPECIALS = /[.*+?^${}()|[\]\\]/g;
+const DESCRIPTION_PREVIEW_LENGTH = 100;
 
 const highlight = (text: string, term: string) => {
 	const needle = normalize(term);
@@ -65,6 +66,9 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 	);
 	const latestRecord = records.at(0);
 	const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+	const description = latestRecord?.recognition.post?.content ?? interruption.reason;
+	const canExpandDescription = (description?.length ?? 0) > DESCRIPTION_PREVIEW_LENGTH;
 
 	return (
 		<Card className="space-y-3 p-4">
@@ -120,7 +124,27 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 				})}
 			</div>
 
-			{interruption.reason && <p className="text-sm text-slate-400">{interruption.reason}</p>}
+			{description && (
+				<div>
+					<p
+						className={`text-sm text-slate-400 ${
+							isDescriptionExpanded ? "whitespace-pre-line" : "line-clamp-1"
+						}`}
+					>
+						{description}
+					</p>
+					{canExpandDescription && (
+						<button
+							type="button"
+							onClick={() => setIsDescriptionExpanded((value) => !value)}
+							className="cursor-pointer text-xs font-medium text-sky-400 transition-colors hover:text-sky-300"
+						>
+							{isDescriptionExpanded ? "See less" : "See more"}
+						</button>
+					)}
+				</div>
+			)}
+
 			{latestRecord && (
 				<div className="flex flex-row flex-wrap-reverse items-center space-x-1.5 space-y-reverse space-y-1.5">
 					<div className="flex items-center grow space-x-1.5">
@@ -161,7 +185,7 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 						className="text-xs w-full cursor-pointer "
 					>
 						<div className="flex items-center space-x-1.5 text-slate-500 hover:text-slate-400">
-							<h3 className="text-xs font-medium tracking-wide  uppercase">Records ({records.length})</h3>
+							<h3 className="text-xs font-medium tracking-wide  uppercase">History ({records.length})</h3>
 							<div className="border-b border-slate-700 grow"></div>
 							<div className="flex items-center">
 								{isRecordExpanded ? (
@@ -195,7 +219,9 @@ function InterruptionRecord({ record, onPreview }: InterruptionRecordProps) {
 	const fileName = record.recognition?.filename;
 	const src = fileName ? getImageUrl(fileName) : null;
 	const range = formatTimeRange(record.timeSlots);
-	const recognizedReason = record.recognition?.response?.reason;
+	const description = record.recognition?.post?.content ?? record.reason;
+	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+	const canExpandDescription = (description?.length ?? 0) > DESCRIPTION_PREVIEW_LENGTH;
 
 	return (
 		<div className="flex flex-row gap-1.5">
@@ -223,7 +249,26 @@ function InterruptionRecord({ record, onPreview }: InterruptionRecordProps) {
 						{range && <span className="tabular-nums text-slate-400 text-xs">{range}</span>}
 					</div>
 				</div>
-				{recognizedReason && <p className="text-xs text-slate-400">{recognizedReason}</p>}
+				{description && (
+					<div>
+						<p
+							className={`text-xs text-slate-400 ${
+								isDescriptionExpanded ? "whitespace-pre-line" : "line-clamp-1"
+							}`}
+						>
+							{description}
+						</p>
+						{canExpandDescription && (
+							<button
+								type="button"
+								onClick={() => setIsDescriptionExpanded((value) => !value)}
+								className="cursor-pointer text-xs font-medium text-sky-400 transition-colors hover:text-sky-300"
+							>
+								{isDescriptionExpanded ? "See less" : "See more"}
+							</button>
+						)}
+					</div>
+				)}
 			</div>
 		</div>
 	);
