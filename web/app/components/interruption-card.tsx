@@ -67,12 +67,12 @@ export function InterruptionCard({ interruption, type, highlightedText = "", onP
 	const latestRecord = records.at(0);
 	const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-	const description = latestRecord?.recognition.post?.content ?? interruption.reason;
+	const description = latestRecord?.recognition.post?.content || interruption.reason;
 	const canExpandDescription = (description?.length ?? 0) > DESCRIPTION_PREVIEW_LENGTH;
 
 	return (
-		<Card className="space-y-3 p-4">
-			<div className="grid grid-cols-[auto_1fr] items-start gap-x-2.5 gap-y-2">
+		<Card className="space-y-2 p-4">
+			<div className="grid grid-cols-[auto_1fr] items-start gap-x-2.5 gap-y-1">
 				{latestRecord && (
 					<img
 						src={getImageUrl(latestRecord.recognition?.filename ?? "")}
@@ -219,7 +219,7 @@ function InterruptionRecord({ record, onPreview }: InterruptionRecordProps) {
 	const fileName = record.recognition?.filename;
 	const src = fileName ? getImageUrl(fileName) : null;
 	const range = formatTimeRange(record.timeSlots);
-	const description = record.recognition?.post?.content ?? record.reason;
+	const description = record.recognition?.post?.content || record.reason;
 	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 	const canExpandDescription = (description?.length ?? 0) > DESCRIPTION_PREVIEW_LENGTH;
 
