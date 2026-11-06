@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { FaGithub } from "react-icons/fa6";
 import { MdArrowBack, MdChevronRight, MdExpandMore, MdNotificationsActive, MdNotificationsOff } from "react-icons/md";
 import { useSearchParams } from "react-router";
 import { getInterruptions, type Interruption } from "~/api";
@@ -209,6 +210,19 @@ export default function Home() {
 					);
 				})}
 			</main>
+
+			<footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-slate-800 text-sm text-slate-500 pt-4">
+				<span>&copy; {new Date().getFullYear()} SuspiciousLookingOwl</span>
+				<a
+					href="https://github.com/SuspiciousLookingOwl/penelco-outage-tracker"
+					target="_blank"
+					rel="noreferrer"
+					className="flex items-center gap-1.5 transition-colors hover:text-slate-300"
+				>
+					<FaGithub className="size-3.5" />
+					<span>GitHub</span>
+				</a>
+			</footer>
 
 			{preview && (
 				<div
