@@ -224,52 +224,50 @@ function InterruptionRecord({ record, onPreview }: InterruptionRecordProps) {
 	const canExpandDescription = (description?.length ?? 0) > DESCRIPTION_PREVIEW_LENGTH;
 
 	return (
-		<div className="flex flex-row gap-1.5">
+		<div className="grid grid-cols-[auto_1fr] items-start gap-x-2 gap-y-1.5">
 			{src && (
 				<img
 					src={src}
 					alt="Interruption notice"
 					onClick={() => onPreview(src)}
-					className="aspect-square h-20 cursor-pointer rounded border border-slate-800 object-cover transition-opacity hover:opacity-80"
+					className="col-start-1 row-start-1 aspect-square h-20 cursor-pointer rounded border border-slate-800 object-cover transition-opacity hover:opacity-80 sm:row-span-2"
 				/>
 			)}
-			<div className="grow space-y-1.5">
-				<div className="flex flex-col flex-wrap items-baseline space-x-2 space-y-1 text-sm">
-					<div className="flex flex-row items-center space-x-2">
-						<span className={`rounded px-1.5 py-0.5 text-xs font-medium ${typeStyles[record.type]}`}>
-							{record.type}
-						</span>
-						<span className="text-xs text-slate-500">
-							{formatDateTime(record.recognition.post.timestamp)}
-						</span>
-						<span className="text-[0.5rem] text-slate-700">({record.recognition.post.id})</span>
-					</div>
-					<div className="flex flex-row items-center space-x-2">
-						<span className="tabular-nums text-slate-300">{formatDate(record.date)}</span>
-						{range && <span className="tabular-nums text-slate-400 text-xs">{range}</span>}
-					</div>
+
+			<div className="col-start-2 row-start-1 space-y-1 text-sm">
+				<div className="flex sm:flex-row flex-col sm:items-center space-x-1.5 space-y-1">
+					<span className={`rounded px-1.5 py-0.5 text-xs font-medium max-w-max ${typeStyles[record.type]}`}>
+						{record.type}
+					</span>
+					<span className="text-xs text-slate-500">{formatDateTime(record.recognition.post.timestamp)}</span>
+					<span className="text-[0.5rem] text-slate-700 sm:block hidden">({record.recognition.post.id})</span>
 				</div>
-				{description && (
-					<div>
-						<p
-							className={`text-xs text-slate-400 ${
-								isDescriptionExpanded ? "whitespace-pre-line" : "line-clamp-1"
-							}`}
-						>
-							{description}
-						</p>
-						{canExpandDescription && (
-							<button
-								type="button"
-								onClick={() => setIsDescriptionExpanded((value) => !value)}
-								className="cursor-pointer text-xs font-medium text-sky-400 transition-colors hover:text-sky-300"
-							>
-								{isDescriptionExpanded ? "See less" : "See more"}
-							</button>
-						)}
-					</div>
-				)}
+				<div className="flex flex-row flex-wrap items-center gap-x-2 gap-y-0.5">
+					<span className="tabular-nums text-slate-300">{formatDate(record.date)}</span>
+					{range && <span className="tabular-nums text-xs text-slate-400">{range}</span>}
+				</div>
 			</div>
+
+			{description && (
+				<div className="col-span-2 sm:col-span-1 sm:col-start-2 sm:row-start-2">
+					<p
+						className={`text-xs text-slate-400 ${
+							isDescriptionExpanded ? "whitespace-pre-line" : "line-clamp-1"
+						}`}
+					>
+						{description}
+					</p>
+					{canExpandDescription && (
+						<button
+							type="button"
+							onClick={() => setIsDescriptionExpanded((value) => !value)}
+							className="cursor-pointer text-xs font-medium text-sky-400 transition-colors hover:text-sky-300"
+						>
+							{isDescriptionExpanded ? "See less" : "See more"}
+						</button>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
