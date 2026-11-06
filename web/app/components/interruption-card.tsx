@@ -27,11 +27,13 @@ const REGEXP_SPECIALS = /[.*+?^${}()|[\]\\]/g;
 const DESCRIPTION_PREVIEW_LENGTH = 100;
 
 const highlight = (text: string, term: string) => {
-	const needle = normalize(term);
-	if (!needle || !text) return text;
+	const words = normalize(term).split(/\s+/).filter(Boolean);
+	if (!words.length || !text) return text;
 
 	const pattern = new RegExp(
-		`(${[...needle].map((char) => `${char.replace(REGEXP_SPECIALS, "\\$&")}\\p{M}*`).join("")})`,
+		`(${words
+			.map((word) => [...word].map((char) => `${char.replace(REGEXP_SPECIALS, "\\$&")}\\p{M}*`).join(""))
+			.join("|")})`,
 		"giu"
 	);
 

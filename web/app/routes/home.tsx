@@ -54,7 +54,9 @@ export default function Home() {
 	});
 
 	const groups = useMemo(() => {
-		const term = normalize(search);
+		const terms = normalize(search)
+			.split(/\s+/)
+			.filter((s) => !!s);
 		const now = nowPht();
 		const upcoming: GroupedItem[] = [];
 		const ongoing: GroupedItem[] = [];
@@ -71,9 +73,8 @@ export default function Home() {
 			)[0];
 			if (postId && lastRecord.recognition.post.id !== postId) continue;
 
-			if (term && !normalize(item.area).includes(term) && !normalize(item.subareas).includes(term)) {
-				continue;
-			}
+			const location = `${normalize(item.area)} ${normalize(item.subareas)}`;
+			if (terms.length && !terms.every((term) => location.includes(term))) continue;
 
 			const bounds = getInterruptionBounds(item).sort((a, b) => a.start.diff(b.start));
 			if (!bounds.length) continue;
