@@ -27,8 +27,8 @@ After extracting the text from the images as a structured format, the data is st
 ## Future Improvements
 
 - Calendar view for outages
-- Allowing users to subscribe to certain areas to receive notification when there's a scheduled outage (possibly via PWA / Web Push).
-- Improve the accuracy of text extraction by fine-tuning the model (if needed)
+- ~~Allowing users to subscribe to certain areas to receive notification when there's a scheduled outage (possibly via PWA / Web Push).~~
+- ~~Improve the accuracy of text extraction by fine-tuning the model (if needed)~~
 
 ---
 
