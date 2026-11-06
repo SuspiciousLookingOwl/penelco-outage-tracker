@@ -83,6 +83,12 @@ export class RecognitionService implements OnModuleInit {
 		id: z.string().nullable(),
 	});
 
+	private static RECORD_TYPE_ORDER: Record<InterruptionRecordType, number> = {
+		[InterruptionRecordType.CANCELLED]: 0,
+		[InterruptionRecordType.PUBLISHED]: 1,
+		[InterruptionRecordType.UPDATED]: 2,
+	};
+
 	private isRecognizingUnsuccessful = false;
 	private isFetchingInterruptions = false;
 	private postRecognitionsInProgress = new Set<string>();
@@ -303,8 +309,8 @@ export class RecognitionService implements OnModuleInit {
 	private async recognizeAll(post: InterruptionPost, recognitions: InterruptionRecognition[]): Promise<void> {
 		if (!recognitions.length) return;
 
-		const created = await Promise.all(
-			recognitions.map(async (recognition): Promise<InterruptionRecord | null> => {
+		const recognized = await Promise.all(
+			recognitions.map(async (recognition) => {
 				if (recognition.success) return null;
 
 				this.logger.log(`Recognizing image ${recognition.filename}`);
@@ -333,110 +339,127 @@ export class RecognitionService implements OnModuleInit {
 				recognition.response = result ?? {};
 				await this.recognitionRepository.upsert(recognition);
 
-				if (!result) return null;
-
-				const date = DateUtil.parseCalendarDateOrNull(result.date);
-				if (!date) return null;
-
-				const details = {
-					date,
-					timeSlots: DateUtil.toTimeSlots(date, result.timeSlots),
-					area: result.area.join(", ") || "unknown",
-					subareas: result.subareas.length ? result.subareas.join(", ") : null,
-				};
-
-				let match: Interruption | null = null;
-
-				if (result.type !== InterruptionRecordType.PUBLISHED) {
-					this.logger.log(`Attempting to match interruption for ${recognition.filename}`);
-
-					const candidates = await this.interruptionRepository.get({
-						dateFrom: subDays(date, 14),
-						dateTo: addDays(date, 14),
-					});
-
-					if (candidates.length) {
-						const prompt = `${RecognitionService.MATCH_PROMPT}
-							Notice:
-							${JSON.stringify(
-								{
-									type: result.type,
-									date: DateUtil.format(date, DATE_FORMAT),
-									formerDate: DateUtil.format(result.formerDate, DATE_FORMAT),
-									dayOfWeek: result.dayOfWeek,
-									timeSlots: result.timeSlots,
-									formerTimeSlots: result.formerTimeSlots,
-									area: result.area,
-									subareas: result.subareas,
-									reason: result.reason,
-									restorationTime: result.restorationTime,
-									rawText: result.rawText,
-								},
-								null,
-								2
-							)}
-							Candidates:
-							${JSON.stringify(
-								candidates.map(({ id, date: candidateDate, timeSlots, area, subareas, reason }) => ({
-									id,
-									date: DateUtil.format(candidateDate, DATE_FORMAT),
-									timeSlots,
-									area,
-									subareas,
-									reason,
-								})),
-								null,
-								2
-							)}`;
-
-						try {
-							const matched = await this.openAiService.prompt(prompt, {
-								responseFormat: RecognitionService.MATCH_SCHEMA,
-							});
-
-							this.logger.log(
-								`Matched interruption: ${JSON.stringify(matched)} for ${recognition.filename}`
-							);
-
-							if (matched.id) {
-								match = candidates.find((candidate) => candidate.id === matched.id) ?? null;
-							}
-						} catch (error) {
-							this.logger.error(`Matching interruption for ${date.toISOString()} failed: ${error}`);
-						}
-					}
-
-					if (match) {
-						match.reason = result.reason;
-						if (result.timeSlots.length) match.timeSlots = details.timeSlots;
-						if (result.date) match.date = details.date;
-					}
-				}
-
-				const interruption = await this.interruptionRepository.upsert(
-					match ??
-						new Interruption({
-							interruptionPostId: post.id,
-							...details,
-							reason: result.reason,
-						})
-				);
-
-				return this.recordRepository.upsert(
-					new InterruptionRecord({
-						interruptionId: interruption.id,
-						interruptionRecognitionId: recognition.id,
-						...details,
-						reason: result.reason,
-						type: result.type,
-					})
-				);
+				return result ? { recognition, result } : null;
 			})
 		);
 
-		const records = created.filter((record): record is InterruptionRecord => record !== null);
+		const pending = recognized
+			.filter((item): item is { recognition: InterruptionRecognition; result: RecognizedNotice } => item !== null)
+			.sort(
+				(a, b) =>
+					RecognitionService.RECORD_TYPE_ORDER[a.result.type] -
+					RecognitionService.RECORD_TYPE_ORDER[b.result.type]
+			);
+
+		const records: InterruptionRecord[] = [];
+		for (const { recognition, result } of pending) {
+			const record = await this.persistRecord(post, recognition, result);
+			if (record) records.push(record);
+		}
+
 		if (!records.length) return;
 
 		void this.eventBus.publish(new InterruptionRecordsCreatedEvent({ records, postId: post.id }));
+	}
+
+	private async persistRecord(
+		post: InterruptionPost,
+		recognition: InterruptionRecognition,
+		result: RecognizedNotice
+	): Promise<InterruptionRecord | null> {
+		const date = DateUtil.parseCalendarDateOrNull(result.date);
+		if (!date) return null;
+
+		const details = {
+			date,
+			timeSlots: DateUtil.toTimeSlots(date, result.timeSlots),
+			area: result.area.join(", ") || "unknown",
+			subareas: result.subareas.length ? result.subareas.join(", ") : null,
+		};
+
+		let match: Interruption | null = null;
+
+		if (result.type !== InterruptionRecordType.PUBLISHED) {
+			this.logger.log(`Attempting to match interruption for ${recognition.filename}`);
+
+			const candidates = await this.interruptionRepository.get({
+				dateFrom: subDays(date, 14),
+				dateTo: addDays(date, 14),
+			});
+
+			if (candidates.length) {
+				const prompt = `${RecognitionService.MATCH_PROMPT}
+					Notice:
+					${JSON.stringify(
+						{
+							type: result.type,
+							date: DateUtil.format(date, DATE_FORMAT),
+							formerDate: DateUtil.format(result.formerDate, DATE_FORMAT),
+							dayOfWeek: result.dayOfWeek,
+							timeSlots: result.timeSlots,
+							formerTimeSlots: result.formerTimeSlots,
+							area: result.area,
+							subareas: result.subareas,
+							reason: result.reason,
+							restorationTime: result.restorationTime,
+							rawText: result.rawText,
+						},
+						null,
+						2
+					)}
+					Candidates:
+					${JSON.stringify(
+						candidates.map(({ id, date: candidateDate, timeSlots, area, subareas, reason }) => ({
+							id,
+							date: DateUtil.format(candidateDate, DATE_FORMAT),
+							timeSlots,
+							area,
+							subareas,
+							reason,
+						})),
+						null,
+						2
+					)}`;
+
+				try {
+					const matched = await this.openAiService.prompt(prompt, {
+						responseFormat: RecognitionService.MATCH_SCHEMA,
+					});
+
+					this.logger.log(`Matched interruption: ${JSON.stringify(matched)} for ${recognition.filename}`);
+
+					if (matched.id) {
+						match = candidates.find((candidate) => candidate.id === matched.id) ?? null;
+					}
+				} catch (error) {
+					this.logger.error(`Matching interruption for ${date.toISOString()} failed: ${error}`);
+				}
+			}
+
+			if (match) {
+				match.reason = result.reason;
+				if (result.timeSlots.length) match.timeSlots = details.timeSlots;
+				if (result.date) match.date = details.date;
+			}
+		}
+
+		const interruption = await this.interruptionRepository.upsert(
+			match ??
+				new Interruption({
+					interruptionPostId: post.id,
+					...details,
+					reason: result.reason,
+				})
+		);
+
+		return this.recordRepository.upsert(
+			new InterruptionRecord({
+				interruptionId: interruption.id,
+				interruptionRecognitionId: recognition.id,
+				...details,
+				reason: result.reason,
+				type: result.type,
+			})
+		);
 	}
 }
