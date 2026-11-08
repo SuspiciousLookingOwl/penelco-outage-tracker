@@ -27,6 +27,7 @@ export default function Home() {
 	const [searchParams, setSearchParams] = useSearchParams({ search: "", postId: "" });
 	const [preview, setPreview] = useState<string | null>(null);
 	const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+	const { fid, subscription } = useNotification();
 	const [collapsed, setCollapsed] = useState<Record<InterruptionStatusType, boolean>>({
 		[InterruptionStatusType.Past]: true,
 		[InterruptionStatusType.Ongoing]: false,
@@ -35,7 +36,15 @@ export default function Home() {
 	const search = searchParams.get("search") ?? "";
 	const postId = searchParams.get("postId") ?? "";
 
-	const { fid } = useNotification();
+	const subscribedKeyword = useMemo(
+		() => (subscription?.keywords ?? []).flatMap((keyword) => normalize(keyword).split(/\s+/)).filter(Boolean),
+		[subscription]
+	);
+
+	const keywordHighlight = useMemo(
+		() => (postId ? subscribedKeyword.join(" ") : search),
+		[subscribedKeyword, search, postId]
+	);
 
 	useEffect(() => {
 		if (!preview) return;
@@ -76,6 +85,10 @@ export default function Home() {
 			const location = `${normalize(item.area)} ${normalize(item.subareas)}`;
 			if (terms.length && !terms.every((term) => location.includes(term))) continue;
 
+			if (postId && subscribedKeyword.length && !subscribedKeyword.some((term) => location.includes(term))) {
+				continue;
+			}
+
 			const bounds = getInterruptionBounds(item).sort((a, b) => a.start.diff(b.start));
 			if (!bounds.length) continue;
 
@@ -99,7 +112,7 @@ export default function Home() {
 			{ key: InterruptionStatusType.Upcoming, items: upcoming },
 			{ key: InterruptionStatusType.Past, items: past },
 		];
-	}, [query.data, searchParams]);
+	}, [query.data, searchParams, subscribedKeyword]);
 
 	const total = groups.reduce((count, group) => count + group.items.length, 0);
 
@@ -203,7 +216,7 @@ export default function Home() {
 										key={item.id}
 										type={group.key}
 										interruption={item}
-										highlightedText={search}
+										highlightedText={keywordHighlight}
 										onPreview={setPreview}
 									/>
 								))}
