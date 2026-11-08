@@ -1,7 +1,8 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getMessaging, isSupported, onRegistered, register, unregister, type Messaging } from "firebase/messaging";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createSubscription, deleteSubscription } from "~/api";
+import type { PushSubscriptionDetails } from "~/api";
+import { createSubscription, deleteSubscription, getSubscription, updateSubscription } from "~/api";
 
 const SERVICE_WORKER_URL = "/firebase-messaging-sw.js";
 const FID_KEY = "penelco:fid";
@@ -40,8 +41,11 @@ export enum NotificationStatus {
 export interface NotificationContextValue {
 	status: NotificationStatus;
 	fid: string | null;
+	subscription: PushSubscriptionDetails | null;
+	refresh: () => Promise<void>;
 	subscribe: () => Promise<void>;
 	unsubscribe: () => Promise<void>;
+	save: (keywords: string[], subscribeToAll: boolean) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -49,9 +53,24 @@ const NotificationContext = createContext<NotificationContextValue | null>(null)
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 	const [status, setStatus] = useState<NotificationStatus>(NotificationStatus.Checking);
 	const [fid, setFid] = useState<string | null>(null);
+	const [subscription, setSubscription] = useState<PushSubscriptionDetails | null>(null);
 
 	const isSubscribedRef = useRef(false);
 	const registeredFidRef = useRef<string | null>(null);
+
+	const refresh = useCallback(async () => {
+		const current = localStorage.getItem(FID_KEY);
+		if (!current) return setSubscription(null);
+
+		try {
+			const details = await getSubscription(current);
+			if (details) return setSubscription(details);
+			await createSubscription(current);
+			setSubscription({ keywords: [], isSubscribedToAllInterruptions: false });
+		} catch {
+			setSubscription(null);
+		}
+	}, []);
 
 	useEffect(() => {
 		let stopListening: (() => void) | undefined;
@@ -72,6 +91,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
 				if (localStorage.getItem(FID_KEY) === nextFid) {
 					setFid(nextFid);
+					void refresh();
 					return;
 				}
 
@@ -79,17 +99,22 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 				setFid(nextFid);
 
 				await createSubscription(nextFid).catch(() => undefined);
+				void refresh();
 			});
 
 			setStatus(NotificationStatus.Ready);
-			setFid(localStorage.getItem(FID_KEY));
+
+			const stored = localStorage.getItem(FID_KEY);
+			isSubscribedRef.current = !!stored;
+			setFid(stored);
+			if (stored) void refresh();
 		})();
 
 		return () => {
 			active = false;
 			stopListening?.();
 		};
-	}, []);
+	}, [refresh]);
 
 	const subscribe = useCallback(async () => {
 		if ((await Notification.requestPermission()) !== "granted") {
@@ -116,11 +141,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 			isSubscribedRef.current = true;
 			localStorage.setItem(FID_KEY, nextFid);
 			setFid(nextFid);
+			await refresh();
 		} catch {
 			isSubscribedRef.current = false;
 			setStatus(NotificationStatus.Failed);
 		}
-	}, []);
+	}, [refresh]);
 
 	const unsubscribe = useCallback(async () => {
 		const current = localStorage.getItem(FID_KEY);
@@ -133,9 +159,20 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
 		localStorage.removeItem(FID_KEY);
 		setFid(null);
+		setSubscription(null);
 	}, []);
 
-	const value = useMemo(() => ({ status, fid, subscribe, unsubscribe }), [status, fid, subscribe, unsubscribe]);
+	const save = useCallback(async (keywords: string[], subscribeToAll: boolean) => {
+		const current = localStorage.getItem(FID_KEY);
+		if (!current) return;
+
+		setSubscription(await updateSubscription(current, keywords, subscribeToAll));
+	}, []);
+
+	const value = useMemo(
+		() => ({ status, fid, subscription, refresh, subscribe, unsubscribe, save }),
+		[status, fid, subscription, refresh, subscribe, unsubscribe, save]
+	);
 
 	return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 };

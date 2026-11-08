@@ -1,7 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
 import { MdAdd, MdClose, MdNotificationsOff } from "react-icons/md";
-import { createSubscription, getSubscription, updateSubscription } from "~/api";
 import { NotificationStatus, useNotification } from "~/contexts/notification.context";
 import { usePwa } from "~/contexts/pwa.context";
 import { Button } from "./button";
@@ -11,23 +10,15 @@ const MAX_KEYWORDS = 15;
 const MIN_KEYWORD_LENGTH = 3;
 const MAX_KEYWORD_LENGTH = 50;
 
-interface LoadedSubscription {
-	token: string;
-	keywords: string[];
-	subscribeToAll: boolean;
-}
-
-const NotificationsForm = ({
-	token,
-	keywords,
-	subscribeToAll,
-	onClose,
-}: LoadedSubscription & { onClose: () => void }) => {
-	const { unsubscribe } = useNotification();
+const NotificationsForm = ({ onClose }: { onClose: () => void }) => {
+	const { subscription, save, unsubscribe } = useNotification();
 	const [error, setError] = useState<string | null>(null);
 
 	const form = useForm({
-		defaultValues: { keywords: keywords.length ? keywords : [""], subscribeToAll },
+		defaultValues: {
+			keywords: subscription?.keywords.length ? subscription.keywords : [""],
+			subscribeToAll: subscription?.isSubscribedToAllInterruptions ?? false,
+		},
 		onSubmit: async ({ value }) => {
 			setError(null);
 
@@ -40,7 +31,7 @@ const NotificationsForm = ({
 			if (keywords.length !== value.keywords.length) form.setFieldValue("keywords", keywords);
 
 			try {
-				await updateSubscription(token, keywords, value.subscribeToAll);
+				await save(keywords, value.subscribeToAll);
 				onClose();
 			} catch {
 				setError("Could not save your keywords. Please try again.");
@@ -174,27 +165,24 @@ const NotificationsForm = ({
 
 export const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
 	const { needsInstall, showInstallTutorial } = usePwa();
-	const { status, fid, subscribe } = useNotification();
+	const { status, fid, subscription, refresh, subscribe } = useNotification();
 
-	const [loaded, setLoaded] = useState<LoadedSubscription | null>(null);
-	const [failed, setFailed] = useState(false);
-	const requested = useRef(false);
+	const [isRefreshing, setIsRefreshing] = useState(true);
+	const started = useRef(false);
 
 	const view = needsInstall
 		? "install"
-		: status === NotificationStatus.Ready
-			? fid && loaded
-				? "keywords"
-				: failed
-					? "failed"
-					: "loading"
-			: status === NotificationStatus.Checking
-				? "loading"
-				: status === NotificationStatus.Unsupported
-					? "unsupported"
-					: status === NotificationStatus.Denied
-						? "denied"
-						: "failed";
+		: status === NotificationStatus.Checking
+			? "loading"
+			: status === NotificationStatus.Unsupported
+				? "unsupported"
+				: status === NotificationStatus.Denied
+					? "denied"
+					: isRefreshing
+						? "loading"
+						: subscription
+							? "keywords"
+							: "failed";
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -206,45 +194,11 @@ export const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
 	}, [onClose]);
 
 	useEffect(() => {
-		if (needsInstall || status !== NotificationStatus.Ready || loaded) return;
+		if (started.current || needsInstall || status !== NotificationStatus.Ready) return;
 
-		if (!fid) {
-			if (requested.current) return;
-
-			requested.current = true;
-			void subscribe();
-			return;
-		}
-
-		let active = true;
-
-		void (async () => {
-			const details = await getSubscription(fid).catch(() => null);
-			if (!active) return;
-
-			if (details) {
-				setLoaded({
-					token: fid,
-					keywords: details.keywords,
-					subscribeToAll: details.isSubscribedToAllInterruptions,
-				});
-				return;
-			}
-
-			const recreated = await createSubscription(fid).then(
-				() => true,
-				() => false
-			);
-			if (!active) return;
-
-			if (recreated) setLoaded({ token: fid, keywords: [], subscribeToAll: false });
-			else setFailed(true);
-		})();
-
-		return () => {
-			active = false;
-		};
-	}, [needsInstall, status, fid, loaded, subscribe]);
+		started.current = true;
+		void (fid ? refresh() : subscribe()).finally(() => setIsRefreshing(false));
+	}, [needsInstall, status, fid, refresh, subscribe]);
 
 	return (
 		<div
@@ -301,7 +255,7 @@ export const NotificationsModal = ({ onClose }: { onClose: () => void }) => {
 					</p>
 				)}
 
-				{view === "keywords" && loaded && <NotificationsForm {...loaded} onClose={onClose} />}
+				{view === "keywords" && subscription && <NotificationsForm onClose={onClose} />}
 			</div>
 		</div>
 	);
