@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { FaGithub } from "react-icons/fa6";
 import { MdArrowBack, MdChevronRight, MdExpandMore, MdNotificationsActive, MdNotificationsOff } from "react-icons/md";
 import { useSearchParams } from "react-router";
-import { getInterruptions, type Interruption } from "~/api";
+import { getInterruptions, RecordType, type Interruption } from "~/api";
 import { Button } from "~/components/button";
 import { Card } from "~/components/card";
 import { Input } from "~/components/input";
@@ -96,7 +96,8 @@ export default function Home() {
 			const next = bounds.find(({ start }) => now.isBefore(start.subtract(15, "minute")));
 			const last = bounds.reduce((latest, bound) => (bound.end.isAfter(latest.end) ? bound : latest));
 
-			if (active) ongoing.push({ item, ...active });
+			if (lastRecord.type === RecordType.Cancelled) past.push({ item, ...last });
+			else if (active) ongoing.push({ item, ...active });
 			else if (next) upcoming.push({ item, ...next });
 			else past.push({ item, ...last });
 		}
